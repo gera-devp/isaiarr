@@ -1,0 +1,63 @@
+name: Bug report
+description: Something doesn't work, or tags came out wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **remove tokens, webhook URLs and passwords** from anything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: Isaiarr version
+      description: Shown at the bottom of Settings → System (e.g. 1.6.1)
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: What's affected?
+      options:
+        - Wrong album matched / no match
+        - Wrong tags written (artist, album artist, title, year…)
+        - Lyrics
+        - Artwork
+        - Renaming / undo
+        - Watcher (new music not detected)
+        - Plex / Discord
+        - Web interface / phone / nzb360
+        - Installation / Docker / permissions
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: For matching problems, the film/album name and which source should have matched it help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Scan folder "…"
+        2. Open the album page
+        3. …
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines
+      description: From the Log page, or `docker logs isaiarr`. Redact anything private.
+      render: text
+  - type: input
+    id: setup
+    attributes:
+      label: Setup
+      placeholder: e.g. Synology DS423+, DSM 7.2, Docker via Container Manager, Plex package
+  - type: textarea
+    id: screens
+    attributes:
+      label: Screenshots
+      description: Drag images here (album page screenshots are very useful).

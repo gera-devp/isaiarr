@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% block title %}Scan · Isaiarr{% endblock %}
+{% set st_words = {'queued': 'queued', 'analyzing': 'analyzing', 'review': 'in review', 'nomatch': 'no match',
+                   'uptodate': 'up to date', 'applying': 'writing', 'applied': 'tagged', 'rejected': 'rejected', 'skipped': 'skipped', 'error': 'error'} %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Scan</h1>
+    <p class="subtitle">New music is picked up automatically. Run a manual scan to re-check a folder on demand.</p>
+  </div>
+</header>
+
+<div class="grid">
+  <section class="card" aria-labelledby="auto-h">
+    <form method="post" action="{{ url_for('web.settings') }}" id="watchform" class="kvlist" style="gap: 18px">
+      <input type="hidden" name="section" value="watcher">
+      <input type="hidden" name="next" value="{{ url_for('web.scan') }}">
+      <input type="hidden" name="WATCH_MODE" value="{{ cfg.WATCH_MODE }}">
+      <input type="hidden" name="POLL_INTERVAL" value="{{ cfg.POLL_INTERVAL }}">
+      <div class="cardhead">
+        <h2 id="auto-h">Auto-detect</h2>
+        <label class="check sub"><input type="checkbox" name="WATCH_ENABLED" {{ 'checked' if cfg.WATCH_ENABLED }} data-autosubmit> Watching</label>
+      </div>
+      <div class="field">
+        <span class="label">Library folder</span>
+        <span class="readout">{{ cfg.PLEX_MUSIC_PATH or cfg.MUSIC_DIR }}</span>
+      </div>
+      <div class="field">
+        <label class="label" for="settle">Wait after last copy before scanning</label>
+        {% set w = wfields.SETTLE_SECONDS %}
+        <select id="settle" name="SETTLE_SECONDS" data-autosubmit>
+          {% if w.value not in w.choices|map('first')|list %}<option value="{{ w.value }}" selected>{{ w.value }} seconds (from compose)</option>{% endif %}
+          {% for v, l in w.choices %}<option value="{{ v }}" {{ 'selected' if v == w.value }}>{{ l }}</option>{% endfor %}
+        </select>
+      </div>
+      <noscript><button class="btn sm">Save</button></noscript>
+      <div class="kvlist" style="padding-top: 4px">
+        <span class="label">Recently detected</span>
+        {% for r in recent %}
+          <div class="kv"><a class="k" href="{{ url_for('web.index', a=r.id) if r.status in ('review','nomatch','error') else url_for('web.album', aid=r.id) }}">{{ r.path|rel }}/</a>
+            <span class="v">{% if r.n_files %}{{ r.n_files }} files · {% endif %}{{ st_words.get(r.status, r.status) }}</span></div>
+        {% else %}
+          <div class="kv"><span class="v">Nothing new yet. Copy an album into the library and it shows up here.</span></div>
+        {% endfor %}
+      </div>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="man-h">
+    <h2 id="man-h">Manual scan</h2>
+    <form method="post" class="kvlist" style="gap: 18px" id="scanform">
+      <div class="field">
+        <label class="label" for="scanpath">Folder path</label>
+        <div class="rowform">
+          <input id="scanpath" name="path" class="mono" value="{{ start }}" placeholder="{{ cfg.MUSIC_DIR }} (whole library)" autocomplete="off" spellcheck="false">
+          <button type="button" class="btn" aria-expanded="false" aria-controls="browsebox" id="browsebtn">Browse</button>
+        </div>
+      </div>
+      <div id="browsebox" hidden class="kvlist">
+        <div class="crumbs" id="crumbs"></div>
+        <ul class="browser" id="browser"></ul>
+      </div>
+      <fieldset class="kvlist" style="gap: 4px">
+        <legend class="label" style="margin-bottom: 6px">What to check</legend>
+        <label class="check"><input type="radio" name="mode" value="changed" checked> Only files with missing or wrong tags</label>
+        <label class="check"><input type="radio" name="mode" value="all"> Re-check every file</label>
+        <label class="check"><input type="checkbox" name="recursive" checked> Include subfolders</label>
+      </fieldset>
+      <div><button class="btn primary big">Start scan</button></div>
+    </form>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="run-h" id="runpanel" data-scan="{{ prog.id if prog else '' }}" data-running="{{ '1' if prog and prog.running else '' }}">
+  {% if prog %}
+  {% set folder = (prog.path|rel) if prog.path != cfg.MUSIC_DIR else 'Whole library' %}
+  <div class="cardhead">
+    <h2 id="run-h"><span id="run-state">{{ 'Paused' if prog.paused and prog.running else 'Running' if prog.running else 'Finished' }}</span> · <span>{{ folder }}</span></h2>
+    <div class="tools">
+      <span class="mono small muted" id="run-count">[{{ '{:,}'.format(prog.done) }} / {{ '{:,}'.format(prog.total) }} folders]</span>
+      <form method="post" action="{{ url_for('web.scan_control', action='resume' if prog.paused else 'pause') }}">
+        <button class="btn sm" id="pausebtn">{{ icon('play' if prog.paused else 'pause') }} {{ 'Resume' if prog.paused else 'Pause' }}</button>
+      </form>
+    </div>
+  </div>
+  <div class="progress" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ prog.pct }}" id="run-bar">
+    <div style="width: {{ prog.pct }}%"></div>
+  </div>
+  <div class="grid stats">
+    <div class="tile"><span class="small muted">Already correct</span><span class="num" id="n-correct">{{ prog.correct }}</span></div>
+    <div class="tile"><span class="small muted">Queued for review</span><span class="num warn" id="n-review">{{ prog.review }}</span></div>
+    <div class="tile"><span class="small muted">No match found</span><span class="num bad" id="n-missed">{{ prog.missed }}</span></div>
+  </div>
+  <div class="console" aria-label="Live log" aria-live="polite" id="run-log">
+    {% for st, text in log_lines %}<div class="ln"><span class="lv lv-{{ st }}">{{ st }}</span> {{ text }}</div>
+    {% else %}<div class="ln ghost">Waiting for the first results…</div>{% endfor %}
+  </div>
+  {% if not prog.running and prog.review %}<div><a class="btn" href="{{ url_for('web.index') }}">Review {{ prog.review }} album{{ '' if prog.review == 1 else 's' }}</a></div>{% endif %}
+  {% else %}
+  <div class="cardhead"><h2 id="run-h">No scan yet</h2></div>
+  <p class="muted">Start a manual scan to see its progress here: albums already correct, queued for review, or without a match.</p>
+  {% endif %}
+</section>
+{% endblock %}

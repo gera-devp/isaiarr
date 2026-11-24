@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Isaiarr — Review queue</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Catamaran:wght@700&amp;display=swap">
+<style>
+body{margin:0;background:#14110F}
+a{color:#F2ECE4;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #14110F; color: #F2ECE4; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; box-sizing: border-box; background: #191512; border-right: 1px solid #2E2722; padding: 24px 16px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 8px">
+<div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; color: #1A1208; display: flex; align-items: center; justify-content: center; font-family: 'Catamaran', sans-serif; font-weight: 700; font-size: 17px; line-height: 1">இசை</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 21px; letter-spacing: -0.01em">Isaiarr</div>
+<div style="font-size: 12px; color: #A89D90">Tamil music tagger</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="Main.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; background: #2A231E; color: #FFFFFF; font-weight: 500">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"></path><path d="M16 16l2 2 4-4"></path></svg>
+<span style="flex: 1">Review queue</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: {{accent}}; color: #1A1208; border-radius: 999px; padding: 2px 8px; font-weight: 500">42</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="3"></circle><circle cx="17" cy="15" r="3"></circle><path d="M10 17V5l10-2v12"></path></svg>
+<span>Library</span>
+</a>
+<a href="Scan.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg>
+<span>Scan</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"></path></svg>
+<span>Activity</span>
+</a>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+<span>Settings</span>
+</a>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid #2E2722; border-radius: 12px; background: #1E1916">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #6FD39A"></span>Watcher live</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A89D90; word-break: break-all">/volume2/Multimedia/Audio Songs</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #C9BFB3">
+<span style="border: 1px solid #3A322B; border-radius: 999px; padding: 2px 10px">Plex ✓</span>
+<span style="border: 1px solid #3A322B; border-radius: 999px; padding: 2px 10px">Discord ✓</span>
+</div>
+</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px 48px; display: flex; flex-direction: column; gap: 24px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 40px; letter-spacing: -0.02em; line-height: 1.05">Review queue</h1>
+<p style="margin: 0; color: #A89D90; font-size: 15px; text-wrap: pretty">Proposed tag changes, grouped by album. Nothing is written to your files until you approve.</p>
+</div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<label style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid #3A322B; border-radius: 10px; background: #1C1815; color: #A89D90; min-width: 240px">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search queue</span>
+<input type="search" placeholder="Album, director, singer…" style="flex: 1; background: transparent; border: 0; outline: none; color: #F2ECE4; font: inherit; font-size: 14px">
+</label>
+<button type="button" style="min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid #3A322B; background: transparent; color: #F2ECE4; font-size: 14px; font-weight: 500">Approve all ≥ 95%</button>
+</div>
+</header>
+
+<div role="tablist" aria-label="Filter" style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" role="tab" aria-selected="true" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #F2ECE4; background: #F2ECE4; color: #14110F; font-size: 13px; font-weight: 600">All · 42</button>
+<button type="button" role="tab" aria-selected="false" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-size: 13px">Fixes · 18</button>
+<button type="button" role="tab" aria-selected="false" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-size: 13px">Fill blanks · 21</button>
+<button type="button" role="tab" aria-selected="false" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-size: 13px">Various Artists · 2</button>
+<button type="button" role="tab" aria-selected="false" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-size: 13px">Low confidence · 3</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<ul aria-label="Albums awaiting review" style="list-style: none; margin: 0; padding: 0; flex: 1 1 320px; max-width: 420px; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{albums}}" as="al" hint-placeholder-count="5">
+<li>
+<button type="button" onClick="{{al.pick}}" aria-pressed="{{al.selected}}" style="{{al.cardStyle}}">
+<div aria-hidden="true" style="{{al.coverStyle}}">{{al.initial}}</div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: left">
+<div style="font-weight: 600; font-size: 15px; color: #F2ECE4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{al.album}}</div>
+<div style="font-size: 13px; color: #A89D90">{{al.director}} · {{al.year}}</div>
+<div style="display: flex; gap: 6px; align-items: center; font-size: 12px; color: #A89D90; margin-top: 2px">
+<span>{{al.tracks}} tracks</span><span aria-hidden="true">·</span><span>{{al.source}}</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+<sc-if value="{{al.approved}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 12px; font-weight: 600; color: #6FD39A">Approved</span>
+</sc-if>
+<sc-if value="{{al.pending}}" hint-placeholder-val="{{true}}">
+<span style="{{al.confStyle}}">{{al.confidence}}%</span>
+</sc-if>
+</div>
+</button>
+</li>
+</sc-for>
+</ul>
+
+<section aria-label="Album detail" style="flex: 999 1 520px; min-width: 0; background: #1C1815; border: 1px solid #2E2722; border-radius: 16px; overflow: hidden">
+<div style="padding: 24px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #2E2722">
+<div aria-hidden="true" style="{{sel.bigCoverStyle}}">{{sel.initial}}</div>
+<div style="flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #A89D90">{{sel.source}} · {{sel.confidence}}% match</div>
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -0.01em">{{sel.album}}</h2>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A89D90; word-break: break-all">{{sel.path}}</div>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #3A322B; background: transparent; color: #F2ECE4; font-size: 14px">Edit</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #3A322B; background: transparent; color: #F2ECE4; font-size: 14px">Reject</button>
+<button type="button" onClick="{{approve}}" style="min-height: 44px; padding: 0 20px; border-radius: 10px; border: 0; background: {{accent}}; color: #1A1208; font-size: 14px; font-weight: 600">{{approveLabel}}</button>
+</div>
+</div>
+
+<div style="padding: 20px 24px 8px; display: flex; flex-direction: column; gap: 4px">
+<h3 style="margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #A89D90">Album tags</h3>
+<div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) minmax(0, 1fr) 72px; gap: 0; font-size: 12px; color: #8E8377; padding: 0 0 8px; border-bottom: 1px solid #2E2722">
+<span>Field</span><span>In file now</span><span>Proposed</span><span style="text-align: right">Action</span>
+</div>
+<sc-for list="{{sel.fields}}" as="f" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 140px minmax(0, 1fr) minmax(0, 1fr) 72px; align-items: center; min-height: 44px; border-bottom: 1px solid #262019; gap: 0">
+<span style="color: #C9BFB3">{{f.label}}</span>
+<sc-if value="{{f.blank}}" hint-placeholder-val="{{false}}"><span style="color: #6E655B; font-style: italic">empty</span></sc-if>
+<sc-if value="{{f.hasCurrent}}" hint-placeholder-val="{{true}}"><span style="{{f.currentStyle}}">{{f.current}}</span></sc-if>
+<span style="color: #F2ECE4; font-weight: 500">{{f.proposed}}</span>
+<span style="display: flex; justify-content: flex-end">
+<sc-if value="{{f.isFix}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #3A2A12; color: #F6C27A">Fix</span></sc-if>
+<sc-if value="{{f.isFill}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #16283A; color: #8DC3F5">Fill</span></sc-if>
+<sc-if value="{{f.isKeep}}" hint-placeholder-val="{{true}}"><span style="font-size: 12px; padding: 3px 10px; border-radius: 999px; color: #8E8377; border: 1px solid #3A322B">OK</span></sc-if>
+</span>
+</div>
+</sc-for>
+</div>
+
+<div style="padding: 20px 24px 8px; display: flex; flex-direction: column; gap: 4px">
+<h3 style="margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #A89D90">Tracks</h3>
+<div style="overflow-x: auto">
+<div style="min-width: 640px; display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: 32px minmax(0, 1.4fr) minmax(0, 1.3fr) 104px; gap: 16px; font-size: 12px; color: #8E8377; padding-bottom: 8px; border-bottom: 1px solid #2E2722">
+<span>#</span><span>File rename</span><span>Title · Artist (singers)</span><span style="text-align: right">Lyrics</span>
+</div>
+<sc-for list="{{sel.trackRows}}" as="t" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: 32px minmax(0, 1.4fr) minmax(0, 1.3fr) 104px; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid #262019">
+<span style="font-family: 'JetBrains Mono', monospace; color: #8E8377; font-size: 12px">{{t.no}}</span>
+<div style="display: flex; flex-direction: column; gap: 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; min-width: 0">
+<span style="color: #8E8377; text-decoration: line-through; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{t.oldName}}</span>
+<span style="color: #F2ECE4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">→ {{t.newName}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+<span style="color: #F2ECE4; font-weight: 500">{{t.title}}</span>
+<span style="color: #A89D90; font-size: 13px">{{t.singers}}</span>
+</div>
+<span style="text-align: right; font-size: 12px; color: #C9BFB3">{{t.lyrics}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="margin: 16px 24px 24px; padding: 14px 16px; border-radius: 12px; background: #221C18; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: #C9BFB3">
+<span style="color: #A89D90">On approve</span>
+<span style="padding: 4px 10px; border-radius: 8px; border: 1px solid #3A322B">Write tags</span>
+<span aria-hidden="true" style="color: #6E655B">→</span>
+<span style="padding: 4px 10px; border-radius: 8px; border: 1px solid #3A322B">Rename files</span>
+<span aria-hidden="true" style="color: #6E655B">→</span>
+<span style="padding: 4px 10px; border-radius: 8px; border: 1px solid #3A322B">Plex rescan</span>
+<span aria-hidden="true" style="color: #6E655B">→</span>
+<span style="padding: 4px 10px; border-radius: 8px; border: 1px solid #3A322B">Discord summary</span>
+</div>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#F2A43A","options":["#F2A43A","#E8715A","#7FB6F0","#B9A3F0"]},"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { picked: "vtv", approved: {} };
+  }
+  data() {
+    return [
+      { id: "vtv", album: "Vinnaithaandi Varuvaayaa", director: "A. R. Rahman", year: "2010", tracks: 7, source: "iTunes + Musixmatch", confidence: 98,
+        path: "/volume2/Multimedia/Audio Songs/AR Rahman/VTV/", tone: "#3B2A4A",
+        fields: [
+          { label: "Album", current: "VTV", proposed: "Vinnaithaandi Varuvaayaa", s: "fix" },
+          { label: "Album artist", current: "A.R.Rahman, Vijay Prakash", proposed: "A. R. Rahman", s: "fix" },
+          { label: "Year", current: "", proposed: "2010", s: "fill" },
+          { label: "Genre", current: "Soundtrack", proposed: "Soundtrack", s: "keep" },
+          { label: "Cover art", current: "", proposed: "1400 × 1400 from iTunes", s: "fill" }
+        ],
+        trackRows: [
+          { no: "01", oldName: "01-hosanna_320kbps.flac", newName: "01 - Hosanna.flac", title: "Hosanna", singers: "Vijay Prakash, Suzanne D'Mello, Blaaze", lyrics: "Synced" },
+          { no: "02", oldName: "Mannipaaya (Tamilwire).flac", newName: "02 - Mannipaaya.flac", title: "Mannipaaya", singers: "Shreya Ghoshal, A. R. Rahman", lyrics: "Synced" },
+          { no: "03", oldName: "track03.flac", newName: "03 - Aaromale.flac", title: "Aaromale", singers: "Alphons Joseph", lyrics: "Plain" }
+        ] },
+      { id: "master", album: "Master", director: "Anirudh Ravichander", year: "2021", tracks: 10, source: "iTunes + Musixmatch", confidence: 96,
+        path: "/volume2/Multimedia/Audio Songs/Anirudh/Master/", tone: "#4A2A22",
+        fields: [
+          { label: "Album", current: "Master", proposed: "Master", s: "keep" },
+          { label: "Album artist", current: "", proposed: "Anirudh Ravichander", s: "fill" },
+          { label: "Year", current: "2020", proposed: "2021", s: "fix" },
+          { label: "Genre", current: "", proposed: "Soundtrack", s: "fill" }
+        ],
+        trackRows: [
+          { no: "01", oldName: "Vaathi Coming.mp3", newName: "01 - Vaathi Coming.mp3", title: "Vaathi Coming", singers: "Anirudh Ravichander, Gana Balachandar", lyrics: "Synced" }
+        ] },
+      { id: "mouna", album: "Mouna Ragam", director: "Ilaiyaraaja", year: "1986", tracks: 5, source: "iTunes", confidence: 93,
+        path: "/volume2/Multimedia/Audio Songs/Ilaiyaraaja/Mouna Ragam/", tone: "#22384A",
+        fields: [
+          { label: "Album", current: "Mounaragam", proposed: "Mouna Ragam", s: "fix" },
+          { label: "Album artist", current: "Ilaiyaraaja", proposed: "Ilaiyaraaja", s: "keep" },
+          { label: "Year", current: "", proposed: "1986", s: "fill" }
+        ],
+        trackRows: [
+          { no: "01", oldName: "nilaave vaa.flac", newName: "01 - Nilaave Vaa.flac", title: "Nilaave Vaa", singers: "S. P. Balasubrahmanyam", lyrics: "None found" }
+        ] },
+      { id: "three", album: "3", director: "Anirudh Ravichander", year: "2012", tracks: 7, source: "iTunes + Musixmatch", confidence: 91,
+        path: "/volume2/Multimedia/Audio Songs/Anirudh/3/", tone: "#2A4A36",
+        fields: [
+          { label: "Album", current: "3 (Moonu)", proposed: "3", s: "fix" },
+          { label: "Album artist", current: "Anirudh", proposed: "Anirudh Ravichander", s: "fix" }
+        ],
+        trackRows: [
+          { no: "01", oldName: "kolaveri.mp3", newName: "01 - Why This Kolaveri Di.mp3", title: "Why This Kolaveri Di", singers: "Dhanush", lyrics: "Synced" }
+        ] },
+      { id: "melody", album: "Melody Hits 2000s", director: "Various Artists", year: "—", tracks: 24, source: "Mixed folder", confidence: 61,
+        path: "/volume2/Multimedia/Audio Songs/_Unsorted/Melody Hits 2000s/", tone: "#3A3A3A",
+        fields: [
+          { label: "Album artist", current: "Harris Jayaraj", proposed: "Various Artists", s: "fix" },
+          { label: "Note", current: "", proposed: "No single music director across 24 tracks", s: "fill" }
+        ],
+        trackRows: [
+          { no: "01", oldName: "song1.mp3", newName: "01 - [needs match].mp3", title: "Needs manual match", singers: "—", lyrics: "—" }
+        ] }
+    ];
+  }
+  renderVals() {
+    const accent = this.props.accent ?? "#F2A43A";
+    const picked = this.state.picked;
+    const approved = this.state.approved;
+    const albums = this.data().map((a) => {
+      const selected = a.id === picked;
+      const isApproved = !!approved[a.id];
+      const confColor = a.confidence >= 95 ? "#6FD39A" : (a.confidence >= 80 ? "#F6C27A" : "#F28B7A");
+      return {
+        ...a,
+        initial: a.album.charAt(0),
+        selected: selected,
+        approved: isApproved,
+        pending: !isApproved,
+        pick: () => this.setState({ picked: a.id }),
+        cardStyle: "width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 14px; border: 1px solid " + (selected ? accent : "#2E2722") + "; background: " + (selected ? "#231D18" : "#1A1613") + "; color: inherit; font: inherit;" + (isApproved ? " opacity: 0.6;" : ""),
+        coverStyle: "width: 52px; height: 52px; flex: none; border-radius: 10px; background: " + a.tone + "; display: flex; align-items: center; justify-content: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 22px; color: #F2ECE4",
+        confStyle: "font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: " + confColor
+      };
+    });
+    const s = albums.find((a) => a.selected) || albums[0];
+    const sel = {
+      ...s,
+      bigCoverStyle: "width: 88px; height: 88px; flex: none; border-radius: 14px; background: " + s.tone + "; display: flex; align-items: center; justify-content: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 40px; color: #F2ECE4",
+      fields: s.fields.map((f) => ({
+        ...f,
+        blank: !f.current,
+        hasCurrent: !!f.current,
+        isFix: f.s === "fix",
+        isFill: f.s === "fill",
+        isKeep: f.s === "keep",
+        currentStyle: f.s === "fix" ? "color: #8E8377; text-decoration: line-through" : "color: #C9BFB3"
+      }))
+    };
+    return {
+      accent: accent,
+      albums: albums,
+      sel: sel,
+      approveLabel: approved[s.id] ? "Approved" : "Approve " + s.tracks + " tracks",
+      approve: () => this.setState({ approved: { ...approved, [s.id]: true } })
+    };
+  }
+}
+</script>
+</body>
+</html>

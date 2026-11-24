@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% from "_libtabs.html" import libtabs with context %}
+{% block title %}Needs a decision · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Library</h1>
+    <p class="subtitle">Folders where Isaiarr suggests a different kind of album than the tags say: several composers, one-track singles,
+      collections. Accept the suggestion, pick another, or leave a folder as it is. Your choice is written to <b>every</b> file in the folder
+      and kept from then on, whatever a re-check finds.</p>
+  </div>
+</header>
+{{ libtabs('decisions') }}
+
+<nav class="chips" aria-label="Kind">
+  <a class="chip" href="{{ url_for('web.decisions_page') }}" {% if kind == 'all' %}aria-current="page"{% endif %}>All · <span class="n">{{ counts.all }}</span></a>
+  {% for k, l, _ in policies if counts.get(k) %}
+  <a class="chip" href="{{ url_for('web.decisions_page', kind=k) }}" {% if kind == k %}aria-current="page"{% endif %}>{{ l }} · <span class="n">{{ counts[k] }}</span></a>
+  {% endfor %}
+</nav>
+
+{% if items %}
+<form method="post" action="{{ url_for('web.folders_policy') }}" class="card decide">
+  <div class="abar decide-bar">
+    <label class="check tight"><input type="checkbox" data-checkall="#declist"> All</label>
+    <span class="small muted">Hold <kbd>Shift</kbd> to tick a range.</span>
+    <span class="spacer"></span>
+    <button class="btn sm primary" name="policy" value="suggested"
+            data-confirm="Accept the suggestion for each ticked folder and write it to all their files?">Accept suggestions</button>
+    <details class="setaa">
+      <summary class="btn sm">Set for ticked…</summary>
+      <div class="setaa-box">
+        <label class="field"><span class="label">Kind of album</span>
+          <select name="policy_pick" id="policy_pick">{% for k, l, d in policies %}<option value="{{ k }}">{{ l }} — {{ d }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="label">Album Artist <span class="faint">(empty: from the rule or the match)</span></span>
+          <input name="albumartist" list="aa-common" placeholder="e.g. {{ cfg.VARIOUS_ARTISTS }}"></label>
+        <datalist id="aa-common"><option value="{{ cfg.VARIOUS_ARTISTS }}"></datalist>
+        <button class="btn sm primary" name="policy" value="" formaction="{{ url_for('web.folders_policy') }}"
+                onclick="this.value = document.getElementById('policy_pick').value">Set</button>
+      </div>
+    </details>
+    <button class="btn sm" formaction="{{ url_for('web.folders_dismiss') }}" data-noconfirm title="Don't suggest anything for these folders again">Leave as is</button>
+  </div>
+  <ul class="plain alist declist" id="declist">
+    {% for d in items %}
+    <li>
+      <label class="ck"><input type="checkbox" name="folders" value="{{ d.folder }}" aria-label="Select {{ d.folder|rel }}"></label>
+      <div class="atxt">
+        <span class="mono small" title="{{ d.folder }}">{{ d.folder|rel }}</span>
+        <span class="small"><span class="badge {{ 'fix' if d.policy in ('various', 'single', 'collection') else 'okb' }}">{{ label[d.policy] }}</span>
+          → Album Artist <b>{{ d.albumartist or 'the music director' }}</b>{% if d.album %} · Album <b>{{ d.album }}</b>{% endif %}</span>
+        <span class="small muted">Because {{ d.why|join(', ') }} · now: {{ d.current|join(' · ') }} · {{ d.n }} song{{ '' if d.n == 1 else 's' }}</span>
+      </div>
+      <div class="dact">
+        <button class="btn xs primary" name="folders" value="{{ d.folder }}" formaction="{{ url_for('web.folders_policy') }}"
+                onclick="this.form.querySelectorAll('input[name=folders]').forEach(x => x.checked = false); this.form.querySelector('[name=policy]').value='suggested'"
+                data-noconfirm>Accept</button>
+        {% if d.album_id %}<a class="btn xs" href="{{ url_for('web.album', aid=d.album_id) }}">Open</a>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if total > items|length %}<p class="small muted">Showing {{ items|length }} of {{ total }}; decide these first, the rest follow.</p>{% endif %}
+</form>
+{% else %}
+<div class="empty"><div class="h2">Nothing to decide</div>
+  <p>Every folder either matches the rules or has a decision. New music shows up here when it needs one.</p></div>
+{% endif %}
+{% endblock %}

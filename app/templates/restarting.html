@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Restarting · Isaiarr{% endblock %}
+{% block body %}
+<div class="empty" role="status">
+  <div class="h2"><span class="dot busy" aria-hidden="true"></span> Restarting Isaiarr</div>
+  <p>This page reloads by itself when the app is back, usually within a few seconds.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+setTimeout(function wait() {
+  fetch('/healthz', {cache: 'no-store'}).then(r => { if (r.ok) location.href = '/settings'; else throw 0; })
+    .catch(() => setTimeout(wait, 1500));
+}, 2500);
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% from "_libtabs.html" import libtabs with context %}
+{% block title %}Track names · Library · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Library</h1>
+    <p class="subtitle">Tracks that may have been given another song's title, for example after a bulk approval. Each tagged album is
+      compared with what Isaiarr knows about it: the file's length against the length of the song it was matched to, and the file's
+      <b>original name</b> (before Isaiarr renamed it) against the title now in the file. Nothing is changed here: send the album back
+      to review to fix it, or mark a track as fine.</p>
+  </div>
+  <div class="tools">
+    <form method="post" action="{{ url_for('web.tracks_check') }}">
+      <button class="btn primary" {% if st.running %}disabled{% endif %}
+              data-noconfirm>{{ icon('refresh') }} {{ 'Checking… ' ~ st.done ~ ' / ' ~ st.total if st.running else 'Check track names' }}</button>
+    </form>
+  </div>
+</header>
+{{ libtabs('tracks') }}
+
+<p class="small muted" id="tcstatus">
+  {% if st.last.at %}Last checked {{ st.last.at|ago }}: {{ st.last.albums }} album{{ '' if st.last.albums == 1 else 's' }}, {{ st.last.flagged }} track{{ '' if st.last.flagged == 1 else 's' }} flagged.
+  {% else %}Not checked yet. Albums are also checked one by one each time one is applied.{% endif %}
+  {% if st.ai.running %} · Asking the AI: {{ st.ai.done }} of {{ st.ai.total }}…{% elif st.ai.error %} · <span class="warn">AI: {{ st.ai.error }}</span>{% endif %}
+</p>
+
+<nav class="chips" aria-label="How sure">
+  <a class="chip" href="{{ url_for('web.tracks_page', level='3') }}" {% if level == '3' %}aria-current="page"{% endif %}>Almost certain · <span class="n">{{ counts['3'] }}</span></a>
+  <a class="chip" href="{{ url_for('web.tracks_page', level='2') }}" {% if level == '2' %}aria-current="page"{% endif %}>Likely and up · <span class="n">{{ counts['2'] }}</span></a>
+  <a class="chip" href="{{ url_for('web.tracks_page', level='1') }}" {% if level == '1' %}aria-current="page"{% endif %}>Everything · <span class="n">{{ counts['1'] }}</span></a>
+  {% if counts.ai %}<a class="chip" href="{{ url_for('web.tracks_page', level='ai') }}" {% if level == 'ai' %}aria-current="page"{% endif %}>Wrong per the AI · <span class="n">{{ counts.ai }}</span></a>{% endif %}
+</nav>
+
+{% if groups %}
+<form method="post" action="{{ url_for('web.tracks_act') }}" class="card decide">
+  <div class="abar decide-bar">
+    <label class="check tight"><input type="checkbox" data-checkall="#tclist"> All</label>
+    <span class="small muted">Hold <kbd>Shift</kbd> to tick a range.</span>
+    <span class="spacer"></span>
+    <button class="btn sm primary" name="action" value="review"
+            data-confirm="Send the albums of the ticked tracks back to the review queue? They're matched again and wait for you there.">Send albums to review</button>
+    {% if ai_on %}<button class="btn sm" name="action" value="ai" data-noconfirm title="A second opinion on the ticked tracks; nothing is changed">Ask the AI</button>{% endif %}
+    <button class="btn sm" name="action" value="dismiss" data-noconfirm title="These titles are right: don't flag them again">It's fine</button>
+  </div>
+  <ul class="plain tclist" id="tclist">
+    {% for gr in groups %}
+    <li class="tcalbum">
+      <div class="tchead">
+        <label class="check tight"><input type="checkbox" data-checkall="#tc{{ gr.album_id }}"> <b>{{ gr.name }}</b></label>
+        <span class="mono small muted" title="{{ gr.folder }}">{{ gr.folder|rel }}</span>
+        <span class="spacer"></span>
+        <a class="btn xs" href="{{ url_for('web.album', aid=gr.album_id) }}">Open</a>
+      </div>
+      <ul class="plain alist" id="tc{{ gr.album_id }}">
+        {% for t in gr.tracks %}
+        <li>
+          <label class="ck"><input type="checkbox" name="paths" value="{{ t.path }}" aria-label="Select {{ t.title }}"></label>
+          <div class="atxt">
+            <span><span class="badge {{ 'danger' if t.severity >= 3 else ('fix' if t.severity == 2 else 'src') }}">{{ {3: 'Almost certain', 2: 'Likely', 1: 'Maybe'}[t.severity] }}</span>
+              <b title="{{ t.title }}">{{ t.title or '(no title)' }}</b>
+              <span class="small muted">· was <span class="mono" title="{{ t.orig_name }}">{{ t.orig_name }}</span></span></span>
+            <span class="small muted">{{ t.reasons|join(' · ') }}</span>
+            {% if t.ai %}<span class="small {{ 'warn' if t.ai.verdict == 'wrong' else ('ok' if t.ai.verdict == 'ok' else 'muted') }}">AI: {{ {'ok': 'looks right', 'wrong': 'wrong', 'unsure': 'not sure'}[t.ai.verdict] }}{% if t.ai.reason %} — {{ t.ai.reason }}{% endif %}{% if t.ai.title %} · should be <b>{{ t.ai.title }}</b>{% endif %}</span>{% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if groups|length >= 300 %}<p class="small muted">Showing the first 300 albums.</p>{% endif %}
+</form>
+{% else %}
+<div class="empty"><div class="h2">{{ 'Checking…' if st.running else 'No suspicious titles' }}</div>
+  <p>{% if st.last.at %}Every checked track's title fits its file's length and original name.{% else %}Press <b>Check track names</b> to look through every tagged album.{% endif %}</p></div>
+{% endif %}
+{% if st.running or st.ai.running %}<script>setTimeout(() => location.reload(), 4000)</script>{% endif %}
+{% endblock %}

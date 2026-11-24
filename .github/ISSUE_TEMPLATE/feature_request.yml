@@ -1,0 +1,20 @@
+name: Feature idea
+description: Suggest an improvement or a new metadata source
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the situation in your library, e.g. "my Malayalam albums get the singers as album artist".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example albums or folders
+      description: Real examples make it much easier to get right.

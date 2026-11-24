@@ -1,0 +1,114 @@
+{# Inline stroke icons (18px, 1.8 stroke), from the design. #}
+{% macro icon(name, cls='') -%}
+<svg class="icon {{ cls }}" aria-hidden="true" viewBox="0 0 24 24">
+{%- if name == 'queue' %}<path d="M4 6h16M4 12h10M4 18h7"/><path d="M16 16l2 2 4-4"/>
+{%- elif name == 'home' %}<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>
+{%- elif name == 'folder' %}<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>
+{%- elif name == 'user' %}<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
+{%- elif name == 'library' %}<circle cx="7" cy="17" r="3"/><circle cx="17" cy="15" r="3"/><path d="M10 17V5l10-2v12"/>
+{%- elif name == 'scan' %}<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>
+{%- elif name == 'activity' %}<path d="M3 12h4l3-8 4 16 3-8h4"/>
+{%- elif name == 'settings' %}<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+{%- elif name == 'search' %}<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+{%- elif name == 'refresh' %}<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>
+{%- elif name == 'back' %}<path d="M15 18l-6-6 6-6"/>
+{%- elif name == 'folder' %}<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+{%- elif name == 'up' %}<path d="M12 19V5M5 12l7-7 7 7"/>
+{%- elif name == 'check' %}<path d="M5 12l5 5 9-10"/>
+{%- elif name == 'pause' %}<path d="M9 5v14M15 5v14"/>
+{%- elif name == 'play' %}<path d="M7 5l12 7-12 7z"/>
+{%- elif name == 'playlist' %}<path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="17" r="2.5"/><path d="M20 17V7l-3 1"/>
+{%- elif name == 'sparkle' %}<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>
+{%- elif name == 'radio' %}<circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>
+{%- elif name == 'tag' %}<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/>
+{%- elif name == 'file' %}<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>
+{%- elif name == 'lyrics' %}<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>
+{%- elif name == 'target' %}<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>
+{%- elif name == 'zap' %}<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>
+{%- elif name == 'chat' %}<path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-7l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>
+{%- elif name == 'lock' %}<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+{%- elif name == 'palette' %}<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.8 1.5-1.5 0-1.2-1-1.5-1-2.5s.7-1.5 1.7-1.5H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>
+{%- elif name == 'server' %}<rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/>
+{%- elif name == 'x' %}<path d="M6 6l12 12M18 6L6 18"/>
+{%- elif name == 'copy' %}<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>
+{%- elif name == 'trash' %}<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>
+{%- elif name == 'external' %}<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>
+{%- endif %}</svg>
+{%- endmacro %}
+
+{# Album cover: the real art if there is one, else a tinted tile with the album's first letter. #}
+{% macro cover(c, size='s52') -%}
+<div class="cover {{ size }}" style="--tone: {{ c.tone }}" aria-hidden="true">{{ c.initial }}{% if c.cover %}<img src="{{ c.cover }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</div>
+{%- endmacro %}
+
+{% macro refresh_btn(label='Refresh') -%}
+  <a class="btn sm refresh" href="{{ request.full_path.rstrip('?') }}">{{ icon('refresh') }} {{ label }}</a>
+{%- endmacro %}
+
+{% macro pager(pg, noun='items') -%}
+  {% if pg.total %}
+  <nav class="pager" aria-label="Pages">
+    <span>{{ '{:,}'.format(pg.start) }}–{{ '{:,}'.format(pg.end) }} of {{ '{:,}'.format(pg.total) }} {{ noun }}</span>
+    {% if pg.pages > 1 %}
+    <span class="pages">
+      {% if pg.page > 1 %}<a class="pg" href="{{ page_url(pg.page - 1) }}" aria-label="Previous page">‹</a>{% else %}<span class="pg off" aria-label="Previous page">‹</span>{% endif %}
+      {% for n in pg.nums %}
+        {% if n is none %}<span class="gap">…</span>
+        {% elif n == pg.page %}<span class="pg on" aria-current="page" data-pages="{{ pg.pages }}">{{ n }}</span>
+        {% else %}<a class="pg" href="{{ page_url(n) }}">{{ n }}</a>{% endif %}
+      {% endfor %}
+      {% if pg.page < pg.pages %}<a class="pg" href="{{ page_url(pg.page + 1) }}" aria-label="Next page">›</a>{% else %}<span class="pg off" aria-label="Next page">›</span>{% endif %}
+    </span>
+    {% endif %}
+    <label class="per">Per page
+      <select onchange="location.href=this.value">
+        {% for n in pg.per_options %}<option value="{{ page_url(1, per=n) }}" {{ 'selected' if n == pg.per }}>{{ n }}</option>{% endfor %}
+      </select>
+    </label>
+  </nav>
+  {% endif %}
+{%- endmacro %}
+
+{# A header cell that sorts a paginated list on the server. Clicking the active column flips
+   the direction; another column starts with its natural direction (newest/largest first for
+   dates and numbers, A→Z for text). Sorting always returns to page 1. #}
+{% macro sort_th(label, key, srt, cls='') -%}
+  {% set active = srt.key == key %}
+  {% set desc_first = key in ('confidence','updated','when','files','time','tracks') %}
+  {% set next_dir = ('asc' if srt.dir == 'desc' else 'desc') if active else ('desc' if desc_first else 'asc') %}
+  <th class="{{ cls }} sortable {{ 'sorted' if active }}" aria-sort="{{ ('ascending' if srt.dir == 'asc' else 'descending') if active else 'none' }}">
+    <a href="{{ page_url(1, sort=key, dir=next_dir) }}" title="Sort by {{ label|lower }}">{{ label }}<span class="arrow">{% if active %}{{ '▲' if srt.dir == 'asc' else '▼' }}{% else %}↕{% endif %}</span></a>
+  </th>
+{%- endmacro %}
+
+{# Sort menu: used where a list has no column headers (cards, phone layout). #}
+{% macro sort_picker(options, srt, cls='msort') -%}
+  <label class="sortpick {{ cls }}">
+    <span>Sort</span>
+    <select onchange="location.href=this.value" aria-label="Sort by">
+      {% for key, label in options %}
+        {% set desc_first = key in ('confidence','updated','when','files','time','tracks') %}
+        {% for d in (['desc','asc'] if desc_first else ['asc','desc']) %}
+          {% set arrow = ('newest first' if key in ('updated','when','time') else 'high → low' if desc_first else 'Z → A') if d == 'desc'
+                         else ('oldest first' if key in ('updated','when','time') else 'low → high' if desc_first else 'A → Z') %}
+          <option value="{{ page_url(1, sort=key, dir=d) }}" {{ 'selected' if srt.key == key and srt.dir == d }}>{{ label }} · {{ arrow }}</option>
+        {% endfor %}
+      {% endfor %}
+    </select>
+  </label>
+{%- endmacro %}
+
+{# Playlist cover: up to four tinted film tiles in a 2x2 grid. #}
+{% macro mosaic(tiles, size='s52') -%}
+<div class="mosaic {{ size }} n{{ tiles|length }}" aria-hidden="true">
+  {%- for t in tiles %}<span style="--tone: {{ t.tone }}">{{ t.initial }}</span>{% else %}<span style="--tone: #2A231E">♪</span>{% endfor -%}
+</div>
+{%- endmacro %}
+
+{# Brand mark: an "i" whose stem runs into a fading sound wave. Colours follow the accent. #}
+{% macro logo_mark() -%}
+<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><g fill="currentColor">
+  <circle cx="17.5" cy="18" r="3.8"/><rect x="14" y="26" width="7" height="22" rx="3.5"/>
+  <rect x="25" y="17.5" width="7" height="30" rx="3.5"/><rect x="36" y="24" width="7" height="17" rx="3.5"/>
+  <rect x="47" y="28" width="7" height="9" rx="3.5"/></g></svg>
+{%- endmacro %}

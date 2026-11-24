@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Isaiarr — Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Catamaran:wght@700&amp;display=swap">
+<style>
+body{margin:0;background:#14110F}
+a{color:#F2ECE4;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #14110F; color: #F2ECE4; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; box-sizing: border-box; background: #191512; border-right: 1px solid #2E2722; padding: 24px 16px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 8px">
+<div style="width: 44px; height: 44px; border-radius: 12px; background: {{accent}}; color: #1A1208; display: flex; align-items: center; justify-content: center; font-family: 'Catamaran', sans-serif; font-weight: 700; font-size: 17px; line-height: 1">இசை</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 21px; letter-spacing: -0.01em">Isaiarr</div>
+<div style="font-size: 12px; color: #A89D90">Tamil music tagger</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"></path><path d="M16 16l2 2 4-4"></path></svg>
+<span style="flex: 1">Review queue</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: {{accent}}; color: #1A1208; border-radius: 999px; padding: 2px 8px; font-weight: 500">42</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="3"></circle><circle cx="17" cy="15" r="3"></circle><path d="M10 17V5l10-2v12"></path></svg>
+<span>Library</span>
+</a>
+<a href="Scan.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg>
+<span>Scan</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9BFB3">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"></path></svg>
+<span>Activity</span>
+</a>
+<a href="Settings.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; background: #2A231E; color: #FFFFFF; font-weight: 500">
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>
+<span>Settings</span>
+</a>
+</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px 48px; display: flex; flex-direction: column; gap: 24px; max-width: 1080px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 40px; letter-spacing: -0.02em; line-height: 1.05">Settings</h1>
+<p style="margin: 0; color: #A89D90; font-size: 15px">How Isaiarr matches, tags and renames your music.</p>
+</div>
+<button type="button" style="min-height: 44px; padding: 0 20px; border-radius: 10px; border: 0; background: {{accent}}; color: #1A1208; font-size: 14px; font-weight: 600">Save changes</button>
+</header>
+
+<section aria-labelledby="rules-h" style="background: #1C1815; border: 1px solid #2E2722; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="rules-h" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700">Tag rules</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px">
+<div style="padding: 16px; border-radius: 12px; background: #221C18; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A89D90; text-transform: uppercase; letter-spacing: 0.06em">Album artist</span>
+<span style="font-size: 16px; font-weight: 600">Music director only</span>
+<span style="font-size: 13px; color: #A89D90">No single director → Various Artists</span>
+</div>
+<div style="padding: 16px; border-radius: 12px; background: #221C18; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A89D90; text-transform: uppercase; letter-spacing: 0.06em">Artist</span>
+<span style="font-size: 16px; font-weight: 600">Singers</span>
+<span style="font-size: 13px; color: #A89D90">Joined with “, ”</span>
+</div>
+<div style="padding: 16px; border-radius: 12px; background: #221C18; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A89D90; text-transform: uppercase; letter-spacing: 0.06em">Title &amp; album</span>
+<span style="font-size: 16px; font-weight: 600">As the source returns them</span>
+<span style="font-size: 13px; color: #A89D90">No re-casing or transliteration</span>
+</div>
+</div>
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px">
+<legend style="font-size: 12px; color: #A89D90; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px">When a file already has tags</legend>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px"><input type="radio" name="ow" checked style="width: 18px; height: 18px; accent-color: {{accent}}">Fix incorrect tags and fill blanks; leave correct ones alone</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px"><input type="radio" name="ow" style="width: 18px; height: 18px; accent-color: {{accent}}">Only fill blanks</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}}">Queue every change for my approval</label>
+</fieldset>
+</section>
+
+<section aria-labelledby="rename-h" style="background: #1C1815; border: 1px solid #2E2722; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="rename-h" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700">File renaming</h2>
+<label for="pattern" style="font-size: 12px; color: #A89D90; text-transform: uppercase; letter-spacing: 0.06em">Track file pattern</label>
+<input id="pattern" type="text" value="{track:02} - {title}" style="min-height: 44px; padding: 0 14px; background: #14110F; color: #F2ECE4; border: 1px solid #3A322B; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 14px">
+<div style="display: flex; flex-wrap: wrap; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<button type="button" style="min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-family: inherit">{track:02}</button>
+<button type="button" style="min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-family: inherit">{title}</button>
+<button type="button" style="min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-family: inherit">{artist}</button>
+<button type="button" style="min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-family: inherit">{album}</button>
+<button type="button" style="min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #3A322B; background: transparent; color: #C9BFB3; font-family: inherit">{year}</button>
+</div>
+<div style="padding: 12px 14px; border-radius: 10px; background: #221C18; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #C9BFB3">Preview  <span style="color: #F2ECE4">AR Rahman/VTV/01 - Hosanna.flac</span></div>
+</section>
+
+<section aria-labelledby="src-h" style="background: #1C1815; border: 1px solid #2E2722; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="src-h" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700">Metadata sources</h2>
+<div style="display: flex; flex-direction: column">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid #262019">
+<span style="font-family: 'JetBrains Mono', monospace; color: #8E8377; width: 24px">1</span>
+<div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600; font-size: 15px">iTunes Search</span><span style="font-size: 13px; color: #A89D90">Album, titles, year, cover art · region India</span></div>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; color: #C9BFB3"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}}">Enabled</label>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 14px 0">
+<span style="font-family: 'JetBrains Mono', monospace; color: #8E8377; width: 24px">2</span>
+<div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600; font-size: 15px">Musixmatch</span><span style="font-size: 13px; color: #A89D90">Lyrics (synced when available), singer credits</span></div>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; color: #C9BFB3"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}}">Enabled</label>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="int-h" style="background: #1C1815; border: 1px solid #2E2722; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="int-h" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700">Integrations</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-weight: 600; font-size: 15px">Plex</span><span style="font-size: 12px; color: #6FD39A; font-weight: 600">Connected</span></div>
+<label for="plexurl" style="font-size: 12px; color: #A89D90">Server URL</label>
+<input id="plexurl" type="text" value="http://[NAS-IP]:32400" style="min-height: 44px; padding: 0 14px; background: #14110F; color: #F2ECE4; border: 1px solid #3A322B; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px">
+<label for="plextok" style="font-size: 12px; color: #A89D90">Token</label>
+<input id="plextok" type="password" value="xxxxxxxxxxxxxxxx" style="min-height: 44px; padding: 0 14px; background: #14110F; color: #F2ECE4; border: 1px solid #3A322B; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; color: #C9BFB3"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}}">Rescan the music library after each approval</label>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-weight: 600; font-size: 15px">Discord</span><span style="font-size: 12px; color: #6FD39A; font-weight: 600">Connected</span></div>
+<label for="hook" style="font-size: 12px; color: #A89D90">Webhook URL</label>
+<input id="hook" type="password" value="xxxxxxxxxxxxxxxx" style="min-height: 44px; padding: 0 14px; background: #14110F; color: #F2ECE4; border: 1px solid #3A322B; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px">
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column">
+<legend style="font-size: 12px; color: #A89D90; margin-bottom: 4px">Notify me when</legend>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 40px; color: #C9BFB3"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}}">New albums are waiting for review</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 40px; color: #C9BFB3"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}}">Approved changes are written</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 40px; color: #C9BFB3"><input type="checkbox" style="width: 18px; height: 18px; accent-color: {{accent}}">A scan finishes with misses</label>
+</fieldset>
+<button type="button" style="align-self: flex-start; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #3A322B; background: transparent; color: #F2ECE4; font-size: 13px">Send test message</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#F2A43A","options":["#F2A43A","#E8715A","#7FB6F0","#B9A3F0"]},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? "#F2A43A" };
+  }
+}
+</script>
+</body>
+</html>

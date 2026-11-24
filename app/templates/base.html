@@ -1,0 +1,101 @@
+{% from "_macros.html" import icon, logo_mark with context %}<!doctype html>
+<html lang="en" style="--accent: {{ accent }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14110F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>{% block title %}Isaiarr{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/plex-sans-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ url_for('static', filename='fonts/bricolage.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+</head>
+{% set ep = request.endpoint %}
+{% set section = 'home' if ep == 'web.home' else 'queue' if ep in ('web.index', 'web.album') else 'library' if ep in ('web.library', 'web.decisions_page', 'web.folders_page', 'web.artists_page', 'web.scan')
+   else 'scan' if ep == 'web.scan' else 'playlists' if ep in ('web.playlists_page', 'web.playlist_view') else 'dupes' if ep in ('web.duplicates_page', 'web.duplicates_bin') else 'activity' if ep in ('web.history', 'web.log', 'web.activity_now') else 'settings' if ep == 'web.settings' else '' %}
+<body class="{% block bodyclass %}{% endblock %}">
+<div class="shell">
+<nav class="side" aria-label="Main">
+  <div class="brand">
+    <a class="logo" href="{{ url_for('web.home') }}" aria-label="Isaiarr home">{{ logo_mark() }}</a>
+    <div>
+      <div class="brand-name">Isaiarr</div>
+      <div class="brand-sub">Music tags &amp; playlists</div>
+    </div>
+    <span class="grow"></span>
+    {% set nrun = tasks.running|length %}
+    <button type="button" class="mstatus" id="mstatus" aria-expanded="false" aria-controls="statuscard" title="What's running">
+      <span class="dot {{ 'busy' if nrun else watch_state }}" aria-hidden="true"></span>
+      <span class="mstatus-text">{{ (nrun ~ ' running') if nrun else {'live': 'Watching', 'paused': 'Paused', 'off': 'Not watching'}[watch_state] }}</span>
+    </button>
+  </div>
+  <div class="nav">
+    <a href="{{ url_for('web.home') }}" {% if section == 'home' %}aria-current="page"{% endif %}>{{ icon('home') }}<span class="lbl">Home</span></a>
+    <a href="{{ url_for('web.index') }}" {% if section == 'queue' %}aria-current="page"{% endif %}>
+      {{ icon('queue') }}<span class="lbl">Review queue</span><span class="count" id="nav-queue" {{ 'hidden' if not queue_count }}>{{ queue_count if queue_count < 1000 else '999+' }}</span></a>
+    <a href="{{ url_for('web.library') }}" {% if section == 'library' %}aria-current="page"{% endif %}>{{ icon('library') }}<span class="lbl">Library</span></a>
+    <a href="{{ url_for('web.duplicates_page') }}" {% if section == 'dupes' %}aria-current="page"{% endif %}>{{ icon('copy') }}<span class="lbl">Duplicates</span><span class="count soft" id="nav-dupes" {{ 'hidden' if not dupe_count }}>{{ dupe_count if dupe_count < 1000 else '999+' }}</span></a>
+    <a href="{{ url_for('web.playlists_page') }}" {% if section == 'playlists' %}aria-current="page"{% endif %}>{{ icon('playlist') }}<span class="lbl">Playlists</span></a>
+    <a href="{{ url_for('web.activity') }}" {% if section == 'activity' %}aria-current="page"{% endif %}>{{ icon('activity') }}<span class="lbl">Activity</span></a>
+    <a href="{{ url_for('web.settings') }}" {% if section == 'settings' %}aria-current="page"{% endif %}>{{ icon('settings') }}<span class="lbl">Settings</span></a>
+  </div>
+  <div class="statuscard" id="statuscard">
+    <div class="statusline"><span class="dot {{ watch_state }}" id="watch-dot" aria-hidden="true"></span>
+      <span id="watch-text">{{ {'live': 'Watcher live', 'paused': 'Paused', 'off': 'Watcher off'}[watch_state] }}</span>
+      <span class="grow"></span><a class="tasks-all" href="{{ url_for('web.activity_now') }}">All activity</a></div>
+    <div class="libpath">{{ cfg.PLEX_MUSIC_PATH or cfg.MUSIC_DIR }}</div>
+    {# what's running: filled and kept current by app.js from /api/status #}
+    <div class="tasks" id="tasks" data-max="4" aria-live="polite" aria-label="Running now"></div>
+    <script type="application/json" id="tasks-init">{{ tasks|tojson }}</script>
+    {% if plex_state != 'off' or discord_state != 'off' %}
+    <div class="pills">
+      {% for name, st in (('Plex', plex_state), ('Discord', discord_state)) if st != 'off' %}
+        <span class="pill {{ 'ok' if st == 'ok' else 'bad' if st == 'error' else '' }}"
+              title="{{ {'ok': 'Last request worked', 'error': 'Last request failed: see Settings', 'untested': 'Not used yet'}[st] }}">{{ name }} {{ '✓' if st == 'ok' else '!' if st == 'error' else '' }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</nav>
+
+<main class="content" id="main">
+  {% with msgs = get_flashed_messages() %}
+    {% for m in msgs %}
+      {% if m.startswith('RESTART:') %}
+        <div class="flash" role="status">{{ m[8:] }}
+          <form method="post" action="{{ url_for('web.restart') }}"><button class="btn sm primary">Restart now</button></form></div>
+      {% elif m.startswith('UNDO:') %}{% set parts = m[5:].split(':', 1) %}
+        <div class="flash" role="status">{{ parts[1] }}
+          <form class="undo" method="post" action="{{ url_for('web.duplicates_unexclude', eid=parts[0]|int) }}"><button class="btn xs">Undo</button></form></div>
+      {% elif m.startswith('GO:') %}{% set parts = m[3:].split(':', 1) %}
+        <div class="flash" role="status">{{ parts[1] }}
+          {% if parts[0].startswith('/') and not parts[0].startswith('//') %}<a class="btn xs" href="{{ parts[0] }}">Open</a>{% endif %}</div>
+      {% else %}<div class="flash" role="status">{{ m }}</div>{% endif %}
+    {% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+  <footer class="foot">
+    <span>Isaiarr {{ version }}</span>
+    <a href="{{ repo_url }}/issues/new/choose" target="_blank" rel="noopener">Report a problem</a>
+    <a href="{{ repo_url }}/blob/main/CHANGELOG.md" target="_blank" rel="noopener">What's new</a>
+  </footer>
+</main>
+</div>
+
+{# In-page confirmation: native confirm() popups can be blocked inside app web views (nzb360). #}
+<div class="modal" id="confirm" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-text">
+  <div class="modal-box">
+    <p id="confirm-text"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="confirm-ok">OK</button>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}?v={{ version }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

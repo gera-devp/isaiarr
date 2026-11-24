@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, cover, pager, sort_picker, refresh_btn with context %}
+{% block title %}Review queue · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Review queue</h1>
+    <p class="subtitle">Proposed tag changes, grouped by album. Nothing is written to your files until you approve.</p>
+  </div>
+  <div class="tools">
+    <form method="get" role="search" class="searchbox">
+      {{ icon('search') }}
+      <label for="qsearch" class="sr-only">Search queue</label>
+      <input id="qsearch" type="search" name="q" value="{{ q }}" placeholder="Album, director, singer…" enterkeyhint="search">
+      <input type="hidden" name="f" value="{{ flt }}">
+      <input type="hidden" name="sort" value="{{ srt.key }}"><input type="hidden" name="dir" value="{{ srt.dir }}">
+    </form>
+    <form method="post" action="{{ url_for('web.bulk') }}" class="approveall" id="approveall"
+          data-confs="{{ review_confs|join(',') }}"
+          data-confirm="Write tags for every album in the queue with a match of {{ approve_pct }} % or more?">
+      <input type="hidden" name="action" value="approve_confident">
+      <input type="hidden" name="threshold" id="aa-thr" value="{{ approve_pct / 10 }}">
+      <button class="btn" {{ 'disabled' if not counts.all }} id="aa-btn"><span id="aa-label">Approve all ≥ {{ approve_pct }}%</span></button>
+      <label class="aa-pct" title="Minimum match for Approve all (default in Settings → Matching)">
+        <span class="sr-only">Minimum match, percent</span>
+        <input type="number" id="aa-pct" min="50" max="100" step="1" value="{{ approve_pct }}" inputmode="numeric">%</label>
+      <span class="small muted" id="aa-n"></span>
+    </form>
+    {{ refresh_btn() }}
+  </div>
+</header>
+
+<div class="chiprow">
+  <nav class="chips" aria-label="Filter">
+    {% for key, label in filters %}
+      <a class="chip" href="{{ url_for('web.index', f=key, q=q or None, sort=srt.key, dir=srt.dir) }}"
+         {% if flt == key %}aria-current="page"{% endif %}>{{ label }} · <span class="n">{{ counts[key] }}</span></a>
+    {% endfor %}
+  </nav>
+  {% if cards %}{{ sort_picker([('confidence', 'Match'), ('updated', 'Updated'), ('album', 'Album'), ('artist', 'Music director'), ('tracks', 'Tracks')], srt, '') }}{% endif %}
+</div>
+
+{% if not cards %}
+  <div class="empty">
+    {% if q or flt != 'all' %}
+      <div class="h2">Nothing matches</div>
+      <p>No albums waiting for review match this filter. <a class="link" href="{{ url_for('web.index') }}">Show all</a></p>
+    {% else %}
+      <div class="h2">All caught up</div>
+      <p>No albums are waiting for review. New folders in <code>{{ cfg.MUSIC_DIR }}</code> are picked up
+        {{ 'automatically' if watch.mode not in (none, 'off') else 'when the watcher is on' }}, or
+        <a class="link" href="{{ url_for('web.scan') }}">scan a folder</a>.</p>
+    {% endif %}
+  </div>
+{% else %}
+<div class="qwrap">
+  <div class="qcol">
+    <ul class="qlist" aria-label="Albums awaiting review">
+      {% for c in cards %}
+      <li>
+        <a class="qcard {{ 'done' if c.approved }}" href="{{ page_url(pg.page, a=c.id) }}#detail"
+           {% if c.id == sel_id %}aria-current="true"{% endif %}>
+          {{ cover(c) }}
+          <div class="txt">
+            <div class="t1">{{ c.album }}</div>
+            <div class="t2">{{ c.director }}{% if c.year and c.year != '—' %} · {{ c.year }}{% endif %}</div>
+            <div class="t3">{% if c.sent_back and not c.approved %}<span class="sentb">Sent back</span>{% endif %}<span>{{ c.tracks }} track{{ '' if c.tracks == 1 else 's' }}</span>{% if c.source %}<span aria-hidden="true">·</span><span>{{ c.source }}</span>{% endif %}</div>
+          </div>
+          <div class="side-r">
+            {% if c.approved %}<span class="approved">{{ 'Writing…' if c.writing else 'Approved' }}</span>
+            {% elif c.status == 'error' %}<span class="conf c-bad">Error</span>
+            {% elif c.status == 'nomatch' %}<span class="conf c-bad">No match</span>
+            {% else %}<span class="conf {{ c.conf_class }}">{{ c.conf }}%</span>{% endif %}
+          </div>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {{ pager(pg, 'albums') }}
+  </div>
+
+  {% if sel %}
+  <section class="detail" id="detail" aria-label="Album detail">
+    <div class="dhead">
+      {{ cover(sel, 's88') }}
+      <div class="meta">
+        <div class="caption">{% if sel.empty %}{{ sel.status }}{% else %}{{ sel.source }}{% if sel.conf is not none %} · {{ sel.conf }}% match{% endif %}{% endif %}</div>
+        <h2 class="dtitle">{{ sel.album }}</h2>
+        <div class="dpath">{{ sel.path }}</div>
+      </div>
+      <div class="dactions">
+        <a class="btn" href="{{ url_for('web.album', aid=sel.id) }}">Edit</a>
+        {% if not sel.approved %}
+        <form method="post" action="{{ url_for('web.album_action', aid=sel.id, action='skip') }}">
+          <button class="btn" title="The tags are already right: leave this album as it is, now and on later scans">Skip</button></form>
+        <form method="post" action="{{ url_for('web.album_action', aid=sel.id, action='reject') }}">
+          <button class="btn" title="Wrong match: nothing is written; the album is checked again on the next scan">Reject</button></form>
+        {% endif %}
+        {% if sel.approved %}
+          <span class="btn primary disabled" aria-disabled="true">{{ icon('check') }} {{ 'Writing…' if sel.status == 'applying' else 'Approved' }}</span>
+        {% elif not sel.empty and sel.matched %}
+          <form method="post" action="{{ url_for('web.album_quick_approve', aid=sel.id) }}">
+            <button class="btn primary">Approve {{ sel.matched }} track{{ '' if sel.matched == 1 else 's' }}</button></form>
+        {% endif %}
+      </div>
+    </div>
+    {% if sel.sent_back and not sel.approved %}
+    <div class="note sentnote">{{ icon('tag') }}<span><b>You sent this back</b> {{ sel.sent_from or '' }} · {{ sel.sent_back|ago }}.
+      {% if sel.nothing_found %}The sources agree with the current tags, so nothing is suggested: correct the fields under <b>Edit</b>, or pick another album there under <b>Wrong album?</b>{% else %}Check the suggestions below, or open <b>Edit</b> to change fields or pick another album.{% endif %}</span></div>
+    {% endif %}
+
+    {% if sel.error or sel.collection or sel.fallback or sel.auto_why or sel.notes or sel.md_check or sel.n_sound %}
+    <div class="dnotes">
+      {% set md = sel.md_check %}
+      {% if md and md.status == 'agree' %}<div class="small okline">{{ icon('check') }} TMDB agrees: {{ md.composers|join(', ') }} composed {{ md.film }}{% if md.year %} ({{ md.year }}){% endif %}</div>
+      {% elif md and md.status == 'differ' %}<div class="note warn">TMDB lists <b>{{ md.composers|join(', ') }}</b> as the music director of
+        <a class="link" href="{{ md.url }}" target="_blank" rel="noopener">{{ md.film }}{% if md.year %} ({{ md.year }}){% endif %}</a>; the sources say <b>{{ md.checked }}</b>.
+        Open <b>Edit</b> to pick one.</div>{% endif %}
+      {% if sel.n_sound %}<div class="note">{{ sel.n_sound }} song{{ '' if sel.n_sound == 1 else 's' }} identified by their sound (Shazam): check {{ 'it' if sel.n_sound == 1 else 'them' }} under <b>Edit</b> before approving.</div>{% endif %}
+      {% if sel.error %}<div class="note bad">{{ sel.error }}</div>{% endif %}
+      {% if sel.collection %}<div class="note"><b>Collection:</b> songs from different films, kept together as one album named after the folder.
+        Each song keeps its own year, composer and singers; its film goes into the Grouping tag.</div>
+      {% elif sel.fallback %}<div class="note warn">No album matched, so songs were looked up one by one. Use <b>Edit</b> to pick the right album.</div>{% endif %}
+      {% if sel.auto_why and sel.status in ('review', 'nomatch') %}<div class="note">Not auto-approved: {{ sel.auto_why }}</div>{% endif %}
+      {% for n in sel.notes %}<div class="small muted">{{ n }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if sel.fields %}
+    <div class="dsec">
+      <h3 class="sec-title">Album tags</h3>
+      <div class="taghead" aria-hidden="true"><span>Field</span><span class="h-cur">In file now</span><span class="h-new">Proposed</span><span class="act">Action</span></div>
+      {% for r in sel.fields %}
+      <div class="tagrow">
+        <span class="k">{{ r.label }}</span>
+        {% if r.current %}<span class="cur {{ 'struck' if r.action == 'fix' }}">{{ r.current }}{% if r.mixed %}<span class="mixed">(varies)</span>{% endif %}</span>
+        {% else %}<span class="cur blank">empty</span>{% endif %}
+        <span class="new">{{ r.proposed }}</span>
+        <span class="act">
+          {% if r.action == 'fix' %}<span class="badge fix" title="Wrong in {{ r.count }} of {{ r.of }} files">Fix</span>
+          {% elif r.action == 'fill' %}<span class="badge fill" title="Blank in {{ r.count }} of {{ r.of }} files">Fill</span>
+          {% else %}<span class="badge okb">OK</span>{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if sel.tracks %}
+    <div class="dsec">
+      <h3 class="sec-title">Tracks</h3>
+      <div class="tscroll">
+        <div class="trows">
+          <div class="thead" aria-hidden="true"><span>#</span><span>File rename</span><span>Title · Artist (singers)</span><span class="r">Lyrics</span></div>
+          {% for t in sel.tracks %}
+          <div class="trow {{ 'miss' if not t.matched }}">
+            <span class="no">{{ t.no }}</span>
+            <div class="fn">
+              {% if t.new %}<span class="old" title="{{ t.old }}">{{ t.old }}</span><span class="to" title="{{ t.new }}">→ {{ t.new }}</span>
+              {% else %}<span class="same" title="{{ t.old }}">{{ t.old }}</span>{% endif %}
+            </div>
+            <div class="tt">
+              <span class="t">{{ t.title if t.matched else 'No match: left as is' }}</span>
+              <span class="s">{{ t.singers if t.matched else t.title }}</span>
+              {% if t.song and t.from %}<span class="from">Found as a single song from {{ t.from }}</span>{% endif %}
+              {% if t.sound %}<span class="from">Identified by its sound (Shazam)</span>{% endif %}
+            </div>
+            <span class="ly">{{ t.lyrics }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if not sel.empty %}
+    <div class="pipeline" aria-label="What happens on approve">
+      <span class="muted">On approve</span>
+      <span class="step">Write tags</span>
+      <span class="arrow" aria-hidden="true">→</span>
+      <span class="step {{ '' if sel.rename else 'off' }}" title="{{ '' if sel.rename else 'No files to rename' }}">Rename files</span>
+      <span class="arrow" aria-hidden="true">→</span>
+      <span class="step {{ '' if sel.plex else 'off' }}" title="{{ '' if sel.plex else 'Plex not set up (Settings → Plex)' }}">Plex rescan</span>
+      <span class="arrow" aria-hidden="true">→</span>
+      <span class="step {{ '' if sel.discord else 'off' }}" title="{{ '' if sel.discord else 'Discord not set up (Settings → Discord)' }}">Discord summary</span>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, cover, pager with context %}
+{% block title %}Duplicates · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Duplicates</h1>
+    <p class="subtitle">The same song more than once in your library. Pick the copy to keep; the others go to a bin you can restore from.</p>
+  </div>
+  <div class="tools">
+    <a class="btn" href="{{ url_for('web.duplicates_bin') }}">{{ icon('trash') }} Bin{% if st.bin_files %} · {{ st.bin_files }}{% endif %}</a>
+    <form method="post" action="{{ url_for('web.duplicates_scan') }}">
+      <button class="btn primary" {{ 'disabled' if st.running }}>{{ icon('refresh') }} {{ 'Checking…' if st.running else 'Check library' }}</button></form>
+  </div>
+</header>
+
+{% if not st.fpcalc and cfg.DUPES_FINGERPRINT %}
+  <div class="note warn">The audio fingerprint tool (fpcalc) isn't installed in this container, so only identical files and title matches are found. Rebuild with the latest version to add it.</div>
+{% endif %}
+
+{% if st.running %}
+<section class="card" id="dupescan" aria-live="polite">
+  <div class="cardhead"><h2>{{ st.phase or 'Checking' }}…</h2>
+    <span class="mono small muted" id="ds-count">{% if st.total %}[{{ '{:,}'.format(st.done) }} / {{ '{:,}'.format(st.total) }} songs]{% endif %}</span></div>
+  {% set p = ((st.done / st.total * 100) if st.total else 5)|round|int %}
+  <div class="progress" role="progressbar" aria-label="Duplicate check" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ p }}" id="ds-bar"><div style="width: {{ p }}%"></div></div>
+  <p class="small muted">The first check listens to every song once (about a second each on a NAS); after that only new or changed songs are read. You can leave this page.</p>
+</section>
+{% endif %}
+
+{% if songs_st.songs %}
+<div class="grid stats">
+  <div class="tile"><span class="small muted">Groups to review</span><span class="num">{{ '{:,}'.format(st.groups) }}</span></div>
+  <div class="tile"><span class="small muted">Identical files</span><span class="num bad">{{ '{:,}'.format(st.exact) }}</span></div>
+  <div class="tile"><span class="small muted">Same song, another file</span><span class="num warn">{{ '{:,}'.format(st.recording) }}</span></div>
+  <div class="tile"><span class="small muted">Possible</span><span class="num">{{ '{:,}'.format(st.likely) }}</span></div>
+  <div class="tile"><span class="small muted">Space you could free</span><span class="num ok">{{ st.saving|bytes }}</span></div>
+</div>
+{% endif %}
+
+<div class="chiprow">
+  <nav class="chips" aria-label="Filter">
+    {% for key, label, _k in tabs %}
+      <a class="chip" href="{{ url_for('web.duplicates_page', tab=key) }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }} · <span class="n">{{ counts[key] }}</span></a>
+    {% endfor %}
+  </nav>
+  {% if st.exact and tab in ('all', 'exact') %}
+  <form method="post" action="{{ url_for('web.duplicates_resolve_exact') }}"
+        data-confirm="Keep the suggested copy of every identical group and move the {{ st.exact }} group(s)' extra files to the bin? You can restore them from the bin.">
+    <button class="btn sm">Keep the best copy of all identical files</button></form>
+  {% endif %}
+  {% if st.recording and tab in ('all', 'recording') %}
+  <form method="post" action="{{ url_for('web.duplicates_resolve_exact', kind='recording') }}"
+        data-confirm="Keep the best copy of every “Same song, another file” group and move the extras from {{ st.recording }} group(s) to the bin? The best copy is the lossless or highest-quality one with the most complete tags (marked “Best copy”). If you'd rather keep a different copy in some group, resolve that group on its own first. You can restore anything from the bin.">
+    <button class="btn sm">Keep the best copy of all same-song files</button></form>
+  {% endif %}
+</div>
+
+{% if not songs_st.songs %}
+  <div class="empty"><div class="h2">No songs indexed yet</div>
+    <p>Isaiarr builds its song index on its own shortly after starting. Come back in a few minutes, or start it from
+      <a class="link" href="{{ url_for('web.playlists_page') }}#library">Playlists → Re-check songs</a>.</p></div>
+{% elif not st.last and not st.running %}
+  <div class="empty"><div class="h2">Not checked yet</div>
+    <p>Press <b>Check library</b> to look for duplicates. New music is checked automatically from then on.</p></div>
+{% elif not groups and not excl %}
+  <div class="empty"><div class="h2">{{ 'Nothing marked as not duplicates' if tab == 'ignored' else 'No duplicates here' }}</div>
+    <p>{% if tab == 'ignored' %}Groups you mark as "Not duplicates" are kept here.{% else %}Last checked {{ st.last|ago }}. New music is checked as it's added.{% endif %}</p></div>
+{% elif groups %}
+<div class="dgroups">
+  {% for g in groups %}
+  {% set first = (g.songs | selectattr('id', 'equalto', g.keep_id) | first) or g.songs[0] %}
+  <section class="card dgroup" aria-label="{{ first.title }}">
+    <form method="post" action="{{ url_for('web.duplicates_action', gid=g.id, action='resolve') }}"
+          data-confirm="Keep the selected copy and move the other {{ g.songs|length - 1 }} file(s) to the bin?">
+      <div class="dghead">
+        {% set name = first.film or first.title %}
+        {{ cover({'tone': '#2A231E', 'initial': (name or '?')[:1]|upper, 'cover': ''}, 's44') }}
+        <div class="meta">
+          <div class="t1">{{ first.title }}</div>
+          <div class="t2">{{ first.artist or '—' }}{% if first.film %} · {{ first.film }}{% endif %}{% if first.year %} · {{ first.year }}{% endif %}</div>
+        </div>
+        <span class="badge {{ 'danger' if g.kind == 'exact' else 'fix' if g.kind == 'recording' else 'okb' }}">{{ kind_label[g.kind] }}</span>
+        {% if g.saving %}<span class="small muted nowrap">frees {{ g.saving|bytes }}</span>{% endif %}
+      </div>
+      <ul class="dlist">
+        {% for s in g.songs %}
+        <li class="drow {{ 'best' if s.id == g.keep_id }}">
+          <label class="keep"><input type="radio" name="keep" value="{{ s.id }}" {{ 'checked' if s.id == g.keep_id }}>
+            <span class="sr-only">Keep {{ s.path|rel }}</span></label>
+          <div class="where">
+            <span class="file mono" title="{{ s.path }}">{{ s.path.rsplit('/', 1)[-1] }}</span>
+            <span class="folder mono" title="{{ s.folder }}">{{ s.folder|rel }}/</span>
+          </div>
+          <span class="badge src q {{ 'lossless' if s.lossless }}">{{ s|quality }}</span>
+          <span class="mono small muted">{{ s.duration|mmss }}</span>
+          <span class="mono small muted">{{ s.size|bytes }}</span>
+          <span class="small muted" title="Tags filled in, cover art and lyrics">{{ s.tag_score or 0 }}/9 tags</span>
+          {% if s.id == g.keep_id %}<span class="badge good">Best copy</span>{% else %}<span></span>{% endif %}
+          <button class="xbtn tagbtn" formaction="{{ url_for('web.song_review', sid=s.id) }}" name="from" value="duplicates" data-noconfirm
+                  aria-label="Tags look wrong: send the album of {{ s.path.rsplit('/', 1)[-1] }} to review"
+                  title="Tags look wrong? Send this file's album to the review queue">{{ icon('tag') }}</button>
+          {% if tab != 'ignored' %}
+            <button class="xbtn" formaction="{{ url_for('web.duplicates_exclude', gid=g.id, sid=s.id) }}" data-noconfirm
+                    aria-label="Not a duplicate: remove {{ s.path.rsplit('/', 1)[-1] }} from this group"
+                    title="Not a duplicate: remove from this group">{{ icon('x') }}</button>
+          {% else %}<span></span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="dgfoot">
+        {% if tab == 'ignored' %}
+          <button class="btn sm" formaction="{{ url_for('web.duplicates_action', gid=g.id, action='unignore') }}" formnovalidate data-noconfirm>List again</button>
+        {% else %}
+          <button class="btn sm primary">Keep selected, move others to bin</button>
+          <button class="btn sm" formaction="{{ url_for('web.duplicates_action', gid=g.id, action='ignore') }}" data-noconfirm title="None of these are duplicates of each other">Ignore this group</button>
+        {% endif %}
+        <span class="spacer"></span>
+        <span class="small faint">“Best copy” = lossless first, then higher quality, more complete tags, more plays.</span>
+      </div>
+    </form>
+  </section>
+  {% endfor %}
+</div>
+{{ pager(pg, 'groups') }}
+{% endif %}
+
+{% if excl %}
+<section class="card" aria-labelledby="excl-h">
+  <div class="cardhead"><h2 id="excl-h" class="h3">Files taken out of groups</h2><span class="small muted">{{ excl|length }}</span></div>
+  <p class="small muted">You said these aren't the same song, so they're never grouped together. Put one back to let the next check compare them again.</p>
+  <ul class="plain excl">
+    {% for e in excl %}
+      <li><span><b>{{ e.me_title or (e.me_path or '').rsplit('/', 1)[-1] }}</b>
+        <span class="small muted">not the same as {{ e.n }} file{{ '' if e.n == 1 else 's' }}{% if e.others %}: {{ e.others }}{% endif %} · {{ e.created|ago }}</span>
+        <span class="mono small faint">{{ (e.me_path or '')|rel }}</span></span>
+        <form method="post" action="{{ url_for('web.duplicates_unexclude', eid=e.id) }}"><button class="btn xs">Put back</button></form></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

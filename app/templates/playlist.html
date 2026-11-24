@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, cover, mosaic as mosaic_tile with context %}
+{% block title %}{{ pl.title or 'Playlist' }} · Isaiarr{% endblock %}
+{% block bodyclass %}page-playlist{% endblock %}
+{% set mode_words = {'describe': 'Described', 'song': 'From a song', 'radio': 'Radio'} %}
+{% block body %}
+<header class="pagehead row">
+  <div class="titles"><a class="back" href="{{ url_for('web.playlists_page') }}">{{ icon('back') }} Playlists</a></div>
+  <div class="tools">
+    <form method="post" action="{{ url_for('web.playlist_again', pid=pl.id) }}"><button class="btn sm">{{ icon('refresh') }} Make again</button></form>
+    <form method="post" action="{{ url_for('web.playlist_delete', pid=pl.id) }}" data-confirm="Remove this playlist from Isaiarr's history? A copy saved in Plex stays."><button class="btn sm danger">Remove</button></form>
+  </div>
+</header>
+
+{% if pl.status == 'working' %}
+  <section class="card working-card" id="plworking" data-pid="{{ pl.id }}" aria-live="polite">
+    <div class="plhero">
+      <div class="mosaic s88 n1 pulse" aria-hidden="true"><span style="--tone: #2A231E">{{ icon('sparkle') }}</span></div>
+      <div class="meta">
+        <div class="caption">{{ mode_words[pl.mode] }} · making it now</div>
+        <h1 class="h1 dtitle" title="{{ pl.prompt or '' }}">{{ pl.prompt[:90] if pl.prompt else ('Radio' if pl.mode == 'radio' else 'More like this') }}</h1>
+        <p class="muted small">{% if pl.mode == 'radio' %}Picking songs; this takes a second.{% else %}Usually 10–40 seconds{% if cfg.AI_PROVIDER == 'ollama' %}, longer on your own computer{% endif %}.{% endif %}
+          The page opens the playlist by itself when it's ready.</p>
+      </div>
+    </div>
+    <div class="console" id="plsteps" aria-label="Progress">
+      {% for tag, text in pl.progress %}<div class="ln wrap"><span class="lv lv-{{ tag }}">{{ tag }}</span> {{ text }}</div>
+      {% else %}<div class="ln ghost">Starting…</div>{% endfor %}
+    </div>
+  </section>
+
+{% elif pl.status == 'error' %}
+  <section class="card">
+    <div class="plhero">
+      <div class="mosaic s88 n1" aria-hidden="true"><span style="--tone: #3A2320">!</span></div>
+      <div class="meta">
+        <div class="caption">{{ mode_words[pl.mode] }} · didn't work</div>
+        <h1 class="h1 dtitle" title="{{ pl.prompt or '' }}">{{ pl.prompt[:90] if pl.prompt else 'Playlist' }}</h1>
+      </div>
+    </div>
+    <div class="note bad">Couldn't make this playlist: {{ pl.error }}</div>
+    {% if pl.progress %}<div class="console">{% for tag, text in pl.progress %}<div class="ln wrap"><span class="lv lv-{{ tag }}">{{ tag }}</span> {{ text }}</div>{% endfor %}</div>{% endif %}
+    {% if pl.in_tokens %}<p class="small muted">Used {{ '{:,}'.format(pl.in_tokens + pl.out_tokens) }} tokens before it stopped.</p>{% endif %}
+    <div><form method="post" action="{{ url_for('web.playlist_again', pid=pl.id) }}"><button class="btn primary">{{ icon('refresh') }} Try again</button></form></div>
+  </section>
+
+{% else %}
+<form method="post" action="{{ url_for('web.playlist_save', pid=pl.id) }}" id="saveform" class="kvlist" style="gap: 20px">
+  <section class="plhero">
+    {{ mosaic_tile(mosaic, 's88') }}
+    <div class="meta plhead">
+      <div class="caption">{{ mode_words[pl.mode] }}{% if pl.model %} · {{ pl.model }}{% endif %} · <span id="n-kept">{{ items|length }}</span> songs ·
+        {{ (total // 3600)|int ~ ' h ' if total >= 3600 }}{{ ((total % 3600) // 60)|int }} min</div>
+      <label class="sr-only" for="pltitle">Playlist name</label>
+      <input id="pltitle" class="h1 titleinput" name="title" value="{{ pl.title }}" maxlength="120" title="Click to rename">
+      {% if pl.prompt %}<p class="quote">“{{ pl.prompt }}”</p>{% endif %}
+      <div class="facts">
+        {% if pl.model %}<span class="badge src">{{ '{:,}'.format(pl.in_tokens + pl.out_tokens) }} tokens{% if pl.cost %} · ${{ '%.4f'|format(pl.cost) }}{% endif %}</span>{% endif %}
+        {% if pl.saved %}<span class="badge good">{{ icon('check') }}&nbsp;Saved in Plex {{ pl.saved|ago }}</span>{% endif %}
+        {% if missing %}<span class="badge danger">{{ missing }} not in Plex</span>{% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if pl.notes or missing %}
+  <div class="dnotes">
+    {% for n in pl.notes %}<div class="small {{ 'muted' if not loop.first else '' }}">{{ n }}</div>{% endfor %}
+    {% if missing %}<div class="note warn">{{ missing }} song(s) aren't linked to Plex yet and will be left out when saving. Run <b>Sync with Plex</b> on the Playlists page.</div>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="ptable" role="list" aria-label="Songs">
+    <div class="phead" aria-hidden="true"><span>#</span><span></span><span>Song</span><span>Film</span><span>Mood</span><span class="r">Time</span><span></span></div>
+    <ol class="plist" id="plist">
+      {% for s in items %}
+      <li class="prow {{ 'noplex' if not s.plex_key }}" draggable="true">
+        <span class="no mono" aria-hidden="true"></span>
+        <label class="ck"><input type="checkbox" name="keep" value="{{ s.id }}" checked aria-label="Keep {{ s.title }}"></label>
+        <div class="song">
+          {{ cover(s, 's44') }}
+          <div class="txt">
+            <div class="t1">{{ s.title }}</div>
+            <div class="t2">{{ s.artist or '—' }}</div>
+            {% if s.why %}<div class="why">{{ s.why }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="film small"><span>{{ s.film or '—' }}</span><span class="muted">{{ s.year or '' }}{% if s.albumartist %} · {{ s.albumartist }}{% endif %}</span></div>
+        <div class="mood">{% if s.profile %}{% for m in (s.profile.moods or [])[:2] + (s.profile.kind or [])[:1] %}<span class="tag">{{ m }}</span>{% endfor %}{% endif %}
+          {% if not s.plex_key %}<span class="tag bad">not in Plex</span>{% endif %}</div>
+        <span class="dur mono small muted">{{ s.duration|mmss }}</span>
+        <div class="mv">
+          <button type="button" class="btn xs" data-move="-1" aria-label="Move {{ s.title }} up">↑</button>
+          <button type="button" class="btn xs" data-move="1" aria-label="Move {{ s.title }} down">↓</button>
+          <a class="btn xs" href="{{ url_for('web.playlists_page', tab='song', seed=s.id) }}" title="Make a playlist like this song">Like this</a>
+          <button class="btn xs icon-only" formaction="{{ url_for('web.song_review', sid=s.id) }}" name="from" value="playlists" data-noconfirm data-sendback
+                  title="Tags look wrong? Send this song's album to the review queue" aria-label="Send the album of {{ s.title }} to review">{{ icon('tag') }}</button>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+  <p class="small muted legend">Untick songs to leave them out · drag rows or use ↑ ↓ to reorder · click the name to rename.</p>
+
+  <div class="actionbar saverow">
+    {% if plex_on %}
+      <label class="sr-only" for="save_mode">Save as</label>
+      <select name="save_mode" id="save_mode" style="width: auto">
+        <option value="new">New Plex playlist</option>
+        {% if targets %}<option value="replace">Replace a Plex playlist</option><option value="append">Add to a Plex playlist</option>{% endif %}
+      </select>
+      <select name="target" id="target" style="width: auto" hidden aria-label="Plex playlist">
+        <option value="">Choose…</option>
+        {% for t in targets %}<option value="{{ t.id }}">{{ t.title }} ({{ t.count }})</option>{% endfor %}
+      </select>
+      <button class="btn primary">{{ icon('check') }} {{ 'Save again to Plex' if pl.saved else 'Save to Plex' }}</button>
+      <span class="spacer"></span>
+      <span class="small muted hide-phone">Shows up in every Plex app as a normal playlist.</span>
+      {% if plex_err %}<span class="small bad">Couldn't list Plex playlists: {{ plex_err }}</span>{% endif %}
+    {% else %}
+      <span class="muted">Set up Plex in <a class="link" href="{{ url_for('web.settings', tab='plex') }}">Settings → Plex</a> to save playlists.</span>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+{% endblock %}

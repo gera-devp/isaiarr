@@ -1,0 +1,12 @@
+{# Library views: one place for albums, folders, artists and decisions #}
+{% macro libtabs(active) %}
+<nav class="viewtabs" aria-label="Library views">
+  <a href="{{ url_for('web.library') }}" {% if active == 'albums' %}aria-current="page"{% endif %}>Albums</a>
+  <a href="{{ url_for('web.folders_page') }}" {% if active == 'folders' %}aria-current="page"{% endif %}>Folders</a>
+  <a href="{{ url_for('web.artists_page') }}" {% if active == 'artists' %}aria-current="page"{% endif %}>Artists</a>
+  <a href="{{ url_for('web.decisions_page') }}" {% if active == 'decisions' %}aria-current="page"{% endif %}>Needs a decision{% if lib_decisions %} <span class="count">{{ lib_decisions }}</span>{% endif %}</a>
+  <a href="{{ url_for('web.tracks_page') }}" {% if active == 'tracks' %}aria-current="page"{% endif %}>Track names{% if lib_tracks %} <span class="count">{{ lib_tracks }}</span>{% endif %}</a>
+  <span class="spacer"></span>
+  <a class="aside" href="{{ url_for('web.scan') }}">Scan a folder…</a>
+</nav>
+{% endmacro %}

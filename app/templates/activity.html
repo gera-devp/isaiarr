@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager, refresh_btn, sort_th, sort_picker with context %}
+{% block title %}Activity · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Activity</h1>
+    <p class="subtitle">{{ 'Every time tags were written. Each one keeps a full backup of the original tags and file names, so it can be undone from the album page.'
+        if tab == 'changes' else 'Everything running in the background, updated every couple of seconds. The sidebar shows the same list.'
+        if tab == 'now' else 'What Isaiarr has been doing: analysis, writes, scans, errors.' }}</p>
+  </div>
+  <div class="tools">{% if tab == 'now' %}
+    <form method="post" action="{{ url_for('web.scan_control', action='resume' if paused else 'pause') }}">
+      <button class="btn sm">{{ 'Resume the album queue' if paused else 'Pause the album queue' }}</button></form>
+    {% else %}{{ refresh_btn() }}{% endif %}</div>
+</header>
+<div class="chiprow">
+  <nav class="chips" aria-label="Activity">
+    <a class="chip" href="{{ url_for('web.activity_now') }}" {% if tab == 'now' %}aria-current="page"{% endif %}>Running now</a>
+    <a class="chip" href="{{ url_for('web.history') }}" {% if tab == 'changes' %}aria-current="page"{% endif %}>Changes written</a>
+    <a class="chip" href="{{ url_for('web.log') }}" {% if tab == 'log' %}aria-current="page"{% endif %}>Log</a>
+  </nav>
+  {% if tab == 'changes' %}{{ sort_picker([('when','When'),('album','Album'),('artist','Music director'),('folder','Folder'),('files','Files')], srt, '') }}
+  {% elif tab == 'log' %}{{ sort_picker([('time','When'),('level','Level'),('message','Message')], srt, '') }}{% endif %}
+</div>
+
+{% if tab == 'now' %}
+  <section class="card tasks-full"><div class="tasks big" id="tasks-full" aria-live="polite" aria-label="Running now"></div></section>
+  <p class="small muted">Finished tasks stay listed for five minutes. Details of each step are in the <a class="link" href="{{ url_for('web.log') }}">Log</a>.</p>
+{% elif tab == 'changes' %}
+  {% if not rows %}<div class="empty"><div class="h2">Nothing written yet</div><p>Approved albums show up here.</p></div>{% else %}
+  <div class="tablecard">
+  <table class="list cards hist">
+    <thead><tr>{{ sort_th('When', 'when', srt) }}{{ sort_th('Album', 'album', srt) }}{{ sort_th('Music director', 'artist', srt) }}{{ sort_th('Folder', 'folder', srt) }}{{ sort_th('Files', 'files', srt, 'num') }}{{ sort_th('Undone', 'undone', srt) }}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr data-href="{{ url_for('web.album', aid=r.album_id) }}">
+        <td class="muted small c-upd nowrap">{{ r.batch|ago }}</td>
+        <td class="c-title"><a class="t1" href="{{ url_for('web.album', aid=r.album_id) }}">{{ r.title or (r.path|rel) }}</a></td>
+        <td class="c-artist">{{ r.album_artist or '—' }}</td>
+        <td class="path c-folder">{{ r.path|rel }}</td>
+        <td class="num mono small c-conf">{{ r.n }} file{{ '' if r.n == 1 else 's' }}</td>
+        <td class="c-status">{% if r.restored %}<span class="st">undone</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {{ pager(pg, 'changes') }}
+  {% endif %}
+{% else %}
+  <div class="console" aria-label="Log">
+    {% for r in rows %}
+      <div class="ln wrap"><span class="when">{{ r.ts|ago }}</span><span class="lv lv-{{ r.level }}">{{ r.level|upper }}</span> {{ r.message }}</div>
+    {% else %}<div class="ln ghost">No activity yet.</div>{% endfor %}
+  </div>
+  {{ pager(pg, 'entries') }}
+{% endif %}
+{% endblock %}

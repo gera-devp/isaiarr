@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% from "_libtabs.html" import libtabs with context %}
+{% block title %}Album artists · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Library</h1>
+    <p class="subtitle">Plex makes one artist for every different Album Artist in your files (or the singers, when Album Artist is empty).
+      Tidy these up and Plex's artist list shrinks to the real music directors.</p>
+  </div>
+</header>
+{{ libtabs('artists') }}
+
+<div class="grid stats">
+  <div class="tile"><span class="small muted">Artists Plex will show</span><span class="num">{{ '{:,}'.format(sm.artists) }}</span></div>
+  <a class="tile" href="#variants"><span class="small muted">Same name, other spelling</span><span class="num warn">{{ groups|length }}</span></a>
+  <a class="tile" href="#missing"><span class="small muted">Songs without Album Artist</span><span class="num bad">{{ '{:,}'.format(sm.missing_songs) }}</span></a>
+  <a class="tile" href="#multi"><span class="small muted">Several names in one tag</span><span class="num">{{ multi|length }}</span></a>
+</div>
+
+{% if plex_on %}
+<section class="card" id="plexdupes" aria-labelledby="pd-h">
+  <div class="cardhead"><h2 id="pd-h" class="h3">Same artist more than once in Plex</h2><span class="small muted">{{ pdupes|length }}</span></div>
+  {% if perr %}<div class="note warn">Couldn't read artists from Plex: {{ perr }}</div>
+  {% elif pdupes %}
+  <p class="small muted">Plex sometimes starts a new artist entry when it scans albums at different times, even though the tags say the same name.
+    Merging is Plex's own <i>Merge</i> (as in Plex Web): the albums move to one artist, nothing in your files changes.</p>
+  <form method="post" action="{{ url_for('web.artists_plex_merge') }}"
+        data-confirm="Merge all {{ pdupes|length }} groups of same-name artists in Plex? Albums move to one artist per name; nothing in your files changes.">
+    <button class="btn sm primary">Merge all {{ pdupes|length }}</button></form>
+  <ul class="plain alist">
+    {% for g in pdupes[:200] %}
+    <li><div class="atxt"><span><b>{{ g.name }}</b> <span class="muted">× {{ g.artists|length }} in Plex · {{ g.albums }} album{{ '' if g.albums == 1 else 's' }}</span></span>
+        <span class="small muted">{% if g.hidden_diff %}Spelled with a hidden difference (case, spacing or an invisible character) · {% endif %}{{ g.artists|map(attribute='albums')|join(' + ') }} albums</span></div>
+      <form method="post" action="{{ url_for('web.artists_plex_merge') }}"><input type="hidden" name="keep" value="{{ g.keep }}">
+        <button class="btn xs">Merge</button></form></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">No artist appears twice in Plex.</p>{% endif %}
+</section>
+{% endif %}
+
+<section class="card" id="all" aria-labelledby="all-h">
+  <div class="cardhead"><h2 id="all-h" class="h3">All album artists</h2><span class="small muted">{{ '{:,}'.format(everyone|length) }}</span></div>
+  <form method="get" class="rowflex" style="margin-bottom: 8px">
+    <input type="search" name="find" value="{{ find }}" placeholder="Find an album artist…" aria-label="Find an album artist" style="max-width: 320px">
+    {% if find %}<a class="btn xs" href="{{ url_for('web.artists_page') }}#all">Clear</a>{% endif %}
+  </form>
+  <ul class="plain alist allaa">
+    {% for d in everyone[:(300 if find else 40)] %}
+    <li><div class="atxt"><span><b>{{ d.name }}</b>{% if d.from_singers %} <span class="badge fix" title="These songs have no Album Artist; Plex uses the singers">singers</span>{% endif %}</span>
+        <span class="small muted">{{ d.songs }} song{{ '' if d.songs == 1 else 's' }} · {{ d.folders }} folder{{ '' if d.folders == 1 else 's' }}</span></div>
+      <a class="btn xs" href="{{ url_for('web.library', q=d.name) }}">Albums</a></li>
+    {% else %}<li class="muted">No album artist matches “{{ find }}”.</li>{% endfor %}
+  </ul>
+  {% if not find and everyone|length > 40 %}<p class="small muted">The 40 biggest; find any other one above.</p>{% endif %}
+</section>
+
+<section class="card" id="variants" aria-labelledby="var-h">
+  <div class="cardhead"><h2 id="var-h" class="h3">Same name, other spelling</h2><span class="small muted">{{ groups|length }}</span></div>
+  <p class="small muted">Pick the spelling to keep. Only files with one of the other spellings are changed (Album Artist only), with Undo on each album's page.</p>
+  {% for g in groups %}
+  <div class="vgroup">
+    <form method="post" action="{{ url_for('web.artists_merge') }}" class="vform"
+          data-confirm="Use the chosen spelling as Album Artist for all {{ g.songs }} songs in this group?">
+      {% for n in g.names %}<input type="hidden" name="names" value="{{ n.name }}">{% endfor %}
+      <div class="vnames">
+        {% for n in g.names %}
+        <label class="vopt"><input type="radio" name="target" value="{{ n.name }}" {{ 'checked' if n.name == g.suggested }}>
+          <span class="vn">{{ n.name }}</span>
+          <span class="small muted">{{ n.songs }} song{{ '' if n.songs == 1 else 's' }} · {{ n.folders }} folder{{ '' if n.folders == 1 else 's' }}{% if n.unchecked %} · {{ n.unchecked }} not checked yet{% endif %}{% if n.plex %} · <b>the spelling Plex uses</b>{% endif %}</span></label>
+        {% endfor %}
+        <label class="vopt custom"><span class="small muted">or another spelling</span>
+          <input name="custom" placeholder="e.g. {{ g.suggested }}" aria-label="Another spelling"></label>
+      </div>
+      <div class="vact">
+        <button class="btn sm primary">Use this spelling</button>
+        <button class="btn sm" formaction="{{ url_for('web.artists_ignore') }}" name="key" value="{{ g.key }}" data-noconfirm
+                title="They only look alike">Different artists</button>
+      </div>
+    </form>
+  </div>
+  {% else %}<p class="muted">Nothing to merge.</p>{% endfor %}
+</section>
+
+<section class="card" id="missing" aria-labelledby="miss-h">
+  <div class="cardhead"><h2 id="miss-h" class="h3">Songs without Album Artist</h2><span class="small muted">{{ missing|length }} folder{{ '' if missing|length == 1 else 's' }}</span></div>
+  <p class="small muted">Plex files these under their singers, which adds an artist for every singer combination. Send them to the review queue:
+    Isaiarr looks them up and suggests the music director as Album Artist; nothing is written until you approve.</p>
+  {% set tagged = missing|selectattr('album_id')|selectattr('status', 'in', ['applied', 'uptodate'])|list %}
+  {% if tagged %}
+  <div class="note rowflex">
+    <span><b>{{ tagged|length }} of these albums were already tagged</b>: their songs without Album Artist are the ones no source found.
+      Isaiarr can give them the album's tags right away (album, album artist, genre and year), without looking anything up.</span>
+    <form method="post" action="{{ url_for('web.artists_albumwide') }}"
+          data-confirm="Write the album's tags to the unmatched songs of {{ tagged|length }} tagged album(s)? Titles and singers stay as they are; Undo is on each album's page.">
+      <input type="hidden" name="all" value="1"><button class="btn sm primary">Fix {{ tagged|length }} tagged album{{ '' if tagged|length == 1 else 's' }}</button></form>
+  </div>
+  {% endif %}
+  {% if missing %}
+  <form method="post" action="{{ url_for('web.artists_review') }}">
+    <div class="abar"><label class="check tight"><input type="checkbox" data-checkall="#misslist"> All</label>
+      <span class="small muted">Hold <kbd>Shift</kbd> to tick a range.</span><span class="spacer"></span>
+      <button class="btn sm" formaction="{{ url_for('web.artists_albumwide') }}" title="Only for albums already tagged: write the album's tags to their unmatched songs">Give selected the album's tags</button>
+      <button class="btn sm primary">Send selected to review</button></div>
+    <ul class="plain alist" id="misslist">
+      {% for d in missing[:300] %}
+      <li><label class="ck"><input type="checkbox" name="folders" value="{{ d.folder }}" aria-label="Select {{ d.folder|rel }}"></label>
+        <div class="atxt"><span class="mono small" title="{{ d.folder }}">{{ d.folder|rel }}</span>
+          <span class="small muted">{{ d.songs }} song{{ '' if d.songs == 1 else 's' }} · Plex shows: {{ d.artists|join(' · ') or '(no artist either)' }}{% if d.n_artists > 3 %} · +{{ d.n_artists - 3 }} more{% endif %}</span></div>
+        {% if d.album_id %}<a class="btn xs" href="{{ url_for('web.album', aid=d.album_id) }}">{{ {'rejected': 'Rejected', 'review': 'In review', 'applied': 'Tagged', 'uptodate': 'Up to date', 'nomatch': 'No match'}.get(d.status, d.status) }}</a>
+        {% else %}<span class="badge src">not checked</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% if missing|length > 300 %}<p class="small muted">Showing 300 of {{ missing|length }}; send these first, the rest show up after.</p>{% endif %}
+  </form>
+  {% else %}<p class="muted">Every song has an Album Artist.</p>{% endif %}
+</section>
+
+<section class="card" id="multi" aria-labelledby="multi-h">
+  <div class="cardhead"><h2 id="multi-h" class="h3">Several names in one tag</h2><span class="small muted">{{ multi|length }}</span></div>
+  <p class="small muted">Fine for bands and duos (“Simon &amp; Garfunkel”). For Tamil films this is usually the singers instead of the music director:
+    tick those and send them to review, or change them all to one name.</p>
+  {% if multi %}
+  <form method="post" action="{{ url_for('web.artists_review') }}">
+    <div class="abar"><label class="check tight"><input type="checkbox" data-checkall="#multilist"> All</label>
+      <span class="spacer"></span>
+      <select name="policy" aria-label="Kind of album" style="width: auto">{% for k, l, d in policies %}<option value="{{ k }}" {{ 'selected' if k == 'film' }}>{{ l }}</option>{% endfor %}</select>
+      <input name="albumartist" placeholder="Album Artist (e.g. the music director)" aria-label="Album Artist" style="width: 240px">
+      <button class="btn sm" formaction="{{ url_for('web.folders_policy') }}" data-confirm="Decide the folders that use the selected names: write this kind of album and Album Artist to every file in them?">Set kind of album</button>
+      <button class="btn sm primary">Send selected to review</button></div>
+    <ul class="plain alist" id="multilist">
+      {% for d in multi %}
+      <li><label class="ck"><input type="checkbox" name="names" value="{{ d.name }}" aria-label="Select {{ d.name }}"></label>
+        <div class="atxt"><span>{{ d.name }}</span>
+          <span class="small muted">{{ d.songs }} song{{ '' if d.songs == 1 else 's' }} in {{ d.folders|length }} folder{{ '' if d.folders|length == 1 else 's' }}:
+            <span class="mono">{{ (d.folders[:2]|map('rel')|join(' · ')) }}{% if d.folders|length > 2 %} …{% endif %}</span></span></div></li>
+      {% endfor %}
+    </ul>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

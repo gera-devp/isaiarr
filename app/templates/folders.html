@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% from "_libtabs.html" import libtabs with context %}
+{% block title %}Folders · Library · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Library</h1>
+    <p class="subtitle">Your music folder by folder. Tick a folder to decide what kind of album it is; with <b>Include subfolders</b>
+      the choice goes to every album folder inside it. Written to every file, kept by every re-check, with Undo on each album's page.</p>
+  </div>
+  <div class="tools">
+    <form class="searchbox" method="get" role="search">
+      {{ icon('search') }}
+      <label for="fsearch" class="sr-only">Find folders</label>
+      <input id="fsearch" type="search" name="q" value="{{ q }}" placeholder="Find a folder in {{ b.crumbs[-1][0] }}…" enterkeyhint="search">
+      <input type="hidden" name="path" value="{{ b.rel }}">
+    </form>
+  </div>
+</header>
+{{ libtabs('folders') }}
+
+<nav class="crumbs" aria-label="Folder">
+  {% for name, r in b.crumbs %}
+    {% if not loop.last %}<a href="{{ url_for('web.folders_page', path=r) }}">{{ name }}</a><span aria-hidden="true">/</span>
+    {% else %}<b>{{ name }}</b>{% endif %}
+  {% endfor %}
+  <span class="small muted">· {{ '{:,}'.format(b.total.albums) }} album folder{{ '' if b.total.albums == 1 else 's' }} · {{ '{:,}'.format(b.total.songs) }} songs ·
+    {{ b.total.aa|length }} album artist{{ '' if b.total.aa|length == 1 else 's' }}{% if b.total.suggest %} · <a class="link" href="{{ url_for('web.decisions_page') }}">{{ b.total.suggest }} need a decision</a>{% endif %}</span>
+  {% if q %}<a class="btn xs" href="{{ url_for('web.folders_page', path=b.rel) }}">Clear search</a>{% endif %}
+</nav>
+
+<form method="post" action="{{ url_for('web.folders_policy') }}" class="card ftable" id="fform">
+  <input type="hidden" name="back" value="{{ request.full_path }}">
+  <div class="fbar">
+    <label class="check tight"><input type="checkbox" data-checkall="#flist"> All</label>
+    <label class="check tight"><input type="checkbox" name="recursive" checked> Include subfolders</label>
+    <span class="small muted" id="fsel">Nothing ticked</span>
+    <span class="spacer"></span>
+    <details class="setaa">
+      <summary class="btn sm primary">Set kind of album…</summary>
+      <div class="setaa-box">
+        <label class="field"><span class="label">Kind of album</span>
+          <select id="fpolicy">{% for k, l, d in policies %}<option value="{{ k }}">{{ l }} — {{ d }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="label">Album Artist <span class="faint">(empty: from the kind or the match)</span></span>
+          <input name="albumartist" list="faa" placeholder="e.g. {{ cfg.VARIOUS_ARTISTS }}"></label>
+        <datalist id="faa"><option value="{{ cfg.VARIOUS_ARTISTS }}"></datalist>
+        <label class="field"><span class="label">Album <span class="faint">(only when one folder is chosen; a collection uses the folder name)</span></span>
+          <input name="album"></label>
+        <button class="btn sm primary" name="policy" value="" onclick="this.value = document.getElementById('fpolicy').value"
+                data-confirm="Write this kind of album to the ticked folders{{ '' }} (and the album folders inside them, if Include subfolders is on)? Undo is on each album's page.">Write to ticked folders</button>
+      </div>
+    </details>
+    <button class="btn sm" name="policy" value="suggested" data-confirm="Accept Isaiarr's suggestion for every ticked folder (and the album folders inside them, if Include subfolders is on)?">Accept suggestions</button>
+    <button class="btn sm" formaction="{{ url_for('web.artists_review') }}" data-noconfirm title="Look them up again and keep them in the review queue">Send to review</button>
+    <button class="btn sm" formaction="{{ url_for('web.analysis_reset') }}"
+            data-confirm="Start the ticked folders over? Isaiarr forgets its analysis, folder decisions and album edits for them and checks them again from the tags they have now. Your files aren't changed; Undo keeps working."
+            title="Forget the analysis and your decisions for these folders and check them from scratch">Reset analysis</button>
+  </div>
+
+  {% if b.here %}{% set r = b.here %}
+  <div class="fhere small"><b>This folder has songs of its own:</b>
+    <label class="ck"><input type="checkbox" name="folders" value="{{ r.path }}" data-albums="1" data-songs="{{ r.songs }}" aria-label="Select this folder"></label>
+    {{ r.songs }} songs · {% for n, c in r.top_aa %}{{ n }}{{ ' · ' if not loop.last }}{% endfor %}
+    {% if r.policy %}<span class="badge good">{{ label[r.policy.policy] }}</span>{% elif r.suggestion %}<span class="badge fix">Suggested: {{ label[r.suggestion.policy] }}</span>{% endif %}
+    {% if r.album %}<a class="btn xs" href="{{ url_for('web.album', aid=r.album[0]) }}">Open</a>{% endif %}</div>
+  {% endif %}
+
+  <ul class="plain flist" id="flist">
+    {% for r in b.children %}
+    <li class="frow">
+      <label class="ck"><input type="checkbox" name="folders" value="{{ r.path }}" data-albums="{{ r.albums }}" data-songs="{{ r.songs }}" aria-label="Select {{ r.name }}"></label>
+      <span class="ficon" aria-hidden="true">{{ icon('library') if r.is_album and not r.has_children else icon('folder') }}</span>
+      <div class="fmain">
+        {% if r.has_children %}<a class="fname" href="{{ url_for('web.folders_page', path=r.rel) }}">{{ r.rel if q else r.name }}</a>
+        {% elif r.album %}<a class="fname" href="{{ url_for('web.album', aid=r.album[0]) }}">{{ r.rel if q else r.name }}</a>
+        {% else %}<span class="fname">{{ r.rel if q else r.name }}</span>{% endif %}
+        <span class="small muted">
+          {% if r.has_children %}{{ r.albums }} album folder{{ '' if r.albums == 1 else 's' }} · {% endif %}{{ r.songs }} song{{ '' if r.songs == 1 else 's' }} ·
+          {% for n, c in r.top_aa %}<span class="{{ 'bad' if n == '(no Album Artist)' }}">{{ n }}</span>{% if r.has_children or r.n_aa > 1 %} ({{ c }}){% endif %}{{ ' · ' if not loop.last }}{% endfor %}{% if r.n_aa > 3 %} · +{{ r.n_aa - 3 }} more{% endif %}
+        </span>
+      </div>
+      <div class="fflags">
+        {% if r.is_album and not r.has_children %}
+          {% if r.policy %}<span class="badge good" title="Your decision">{{ label[r.policy.policy] }}</span>
+          {% elif r.suggestion %}<span class="badge fix" title="Because {{ r.suggestion.why|join(', ') }}">Suggested: {{ label[r.suggestion.policy] }}</span>{% endif %}
+          {% if r.releasetype %}<span class="badge src" title="Release type in the files">{{ r.releasetype }}</span>{% endif %}
+        {% else %}
+          {% if r.decided %}<span class="badge good">{{ r.decided }} decided</span>{% endif %}
+          {% if r.suggest %}<span class="badge fix">{{ r.suggest }} to decide</span>{% endif %}
+        {% endif %}
+        {% if r.unchecked %}<span class="badge src" title="Folders Isaiarr hasn't analyzed yet">{{ r.unchecked if r.has_children else '' }} not checked</span>{% endif %}
+        {% if r.plex %}<span class="badge danger" title="Tags and Plex disagree">{{ r.plex if r.has_children else '' }} differs in Plex</span>{% endif %}
+      </div>
+    </li>
+    {% else %}
+    <li class="muted">{{ 'No folder matches “' ~ q ~ '”.' if q else 'No music folders here.' }}</li>
+    {% endfor %}
+  </ul>
+</form>
+{% endblock %}

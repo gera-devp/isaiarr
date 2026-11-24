@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% from "_macros.html" import refresh_btn, icon, cover with context %}
+{% block title %}{{ a.title or 'Album' }} · Isaiarr{% endblock %}
+{% block bodyclass %}page-album{% endblock %}
+{% block body %}
+<header class="pagehead row">
+  <div class="titles">
+    <a class="back" href="{{ url_for('web.index', a=a.id if a.status in ('review','nomatch','error') else None) }}">{{ icon('back') }} Review queue</a>
+  </div>
+  <div class="tools">
+    {% if plex_on and a.status in ('applied', 'uptodate') %}
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='plexrefresh') }}">
+      <button class="btn sm" title="Plex shows an old album name or titles? Unlock and refresh it in Plex">Refresh in Plex</button></form>
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='plexreadd') }}"
+          data-confirm="Re-add this album in Plex? Plex forgets it for a minute or two, then adds it back so it's filed under the album artist in the tags ({{ a.album_artist or 'from the tags' }}). Star ratings and play counts are put back; the album's tracks drop out of Plex playlists. Nothing changes in your files.">
+      <button class="btn sm" title="Plex shows this album under the wrong artist? Make Plex add it again">{{ icon('refresh') }} Re-add in Plex</button></form>
+    {% endif %}
+    {% if a.status in ('applied', 'uptodate', 'rejected', 'error', 'skipped') %}
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='review') }}">
+      <button class="btn sm" title="Tags look wrong? Re-check this album and keep it in the review queue until you approve it">{{ icon('tag') }} Send to review</button></form>
+    {% endif %}
+    {% if a.status in ('applied', 'uptodate', 'rejected', 'error') %}
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='skip') }}"
+          data-confirm="Skip this album from now on? Its tags stay exactly as they are, and scans, the watcher and a library-wide reset leave it alone. Re-check it any time to look again.">
+      <input type="hidden" name="back" value="{{ url_for('web.album', aid=a.id) }}">
+      <button class="btn sm" title="These tags are right: never change this album on later scans">Skip from now on</button></form>
+    {% endif %}
+    {{ refresh_btn() }}</div>
+</header>
+
+{% set src = (p.album.source if p else '') or ('itunes' if p and p.album.collection_id else '') %}
+{% set src_artist = (p.album.source_artist or p.album.itunes_artist) if p else '' %}
+{% set st_words = {'queued': 'Queued', 'analyzing': 'Analyzing', 'review': 'In review', 'nomatch': 'No match',
+                   'uptodate': 'Up to date', 'applying': 'Writing', 'applied': 'Tagged', 'rejected': 'Rejected', 'skipped': 'Skipped', 'error': 'Error'} %}
+<section class="ahead">
+  {{ cover(head, 's88') }}
+  <div class="meta">
+    <h1 class="h1">{{ head.name }}</h1>
+    <div class="subtitle">
+      {% if p %}<b>{{ p.album.album_artist or '—' }}</b>
+        {% if src_artist and src_artist != p.album.album_artist %}
+          <span class="muted">({{ src|srclabel }}: {{ src_artist }})</span>{% endif %}
+        · {{ p.album.date or ('various years' if p.collection else 'year unknown') }} · {{ p.album.genre or 'no genre' }}
+        {% if p.album.url %} · <a class="link" href="{{ p.album.url }}" target="_blank" rel="noopener">{{ src|srclabel }} {{ icon('external') }}</a>{% endif %}
+      {% endif %}
+    </div>
+    <div class="facts">
+      <span class="badge {{ 'good' if a.status in ('applied','uptodate') else 'danger' if a.status in ('error','nomatch') else 'fix' if a.status == 'review' else 'okb' }} st-{{ a.status }}">{{ st_words.get(a.status, a.status) }}</span>
+      {% if src %}<span class="badge src">{{ src|srclabel }}</span>{% endif %}
+      {% if p and p.collection %}<span class="badge accent">Collection</span>{% endif %}
+      {% if a.auto %}<span class="badge good" title="Written automatically: it passed every auto-approve rule">Auto-approved</span>{% endif %}
+      {% if conf is not none %}<span class="conf {{ conf_cls }}" title="Match confidence">{{ conf }}% match</span>{% endif %}
+      {% if p and p.matched is defined %}
+        <span class="{{ 'warn' if p.matched < p.files|length else 'muted' }}">{{ p.matched }} of {{ p.files|length }} tracks matched</span>
+      {% endif %}
+      <a class="link small" href="#wrong">Wrong album?</a>
+    </div>
+    <div class="dpath">{{ a.path|rel }}{% if p %} · searched “{{ p.query.album }}”{% if p.query.artist %} + “{{ p.query.artist }}”{% endif %}{% endif %}</div>
+  </div>
+</section>
+
+{% if a.error %}<div class="note bad">{{ a.error }}</div>{% endif %}
+{% if a.status == 'skipped' %}<div class="note">{{ icon('check') }} <b>Skipped {{ a.updated|ago }}</b>: you marked this album as already correct, so nothing is written to it.
+  Scans, the watcher and a library-wide reset leave it alone. <b>Analyze again</b> (below) or <b>Send to review</b> to look at it again.</div>{% endif %}
+{% if a.verify %}{% set v = a.verify %}
+  {% if v.n_failed %}<div class="note bad"><b>{{ v.n_failed }} tag(s) didn't stick</b> after the last write ({{ v.at|ago }}):
+    {% for x in v.failed[:5] %}{{ x.file }}: {{ x.field }} should be “{{ x.want }}”, is “{{ x.got }}”{{ '; ' if not loop.last }}{% endfor %}{% if v.n_failed > 5 %} …{% endif %}</div>
+  {% else %}<div class="small okline">{{ icon('check') }} Files checked after the last write ({{ v.files }} file{{ '' if v.files == 1 else 's' }}, {{ v.at|ago }}): every tag is as written.</div>{% endif %}
+{% endif %}
+{% if plex_on and a.status in ('applied', 'uptodate') %}{% set pc = a.plex_check %}
+  <div class="small plexline2">
+    {% if pc and pc.ok %}<span class="okline">{{ icon('check') }} Plex shows these tags ({{ pc.checked }} track{{ '' if pc.checked == 1 else 's' }} checked {{ pc.at|ago }})</span>
+    {% elif pc %}<span class="bad">Plex differs ({{ pc.at|ago }}):
+      {% for d in pc.diffs[:3] %}{{ d.file }}: {{ d.field }} is “{{ d.plex }}” in Plex, “{{ d.tags }}” in the file{{ '; ' if not loop.last }}{% endfor %}
+      {% if pc.missing %}{{ pc.missing }} track(s) not found in Plex{% endif %}{% if pc.error %}{{ pc.error }}{% endif %}</span>
+    {% else %}<span class="muted">Not checked in Plex yet.</span>{% endif %}
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='plexcheck') }}" style="display:inline"><button class="btn xs">Check in Plex now</button></form>
+  </div>
+{% endif %}
+<section class="card polcard" aria-labelledby="pol-h">
+  <form method="post" action="{{ url_for('web.folders_policy') }}">
+    <input type="hidden" name="folders" value="{{ a.path }}"><input type="hidden" name="back" value="{{ url_for('web.album', aid=a.id) }}">
+    <div class="cardhead"><h2 id="pol-h" class="h3">Kind of album</h2>
+      {% if pol %}<span class="badge good">Decided: {{ pol_label[pol.policy] }}</span>
+      {% elif sug %}<span class="badge fix">Suggested: {{ pol_label[sug[0]] }}</span>{% endif %}</div>
+    <p class="small muted">{% if pol %}Your decision for this folder: written to all {{ n_songs }} files and kept by every re-check.
+      {% elif sug %}Suggested because {{ sug[3]|join(', ') }}. Nothing is written until you save.
+      {% else %}Isaiarr has no suggestion. Pick one to fix this folder's album artist and release type for good.{% endif %}</p>
+    {% set cur = pol.policy if pol else (sug[0] if sug else '') %}
+    <div class="polopts">
+      {% for k, l, d in policies %}
+      <label class="polopt"><input type="radio" name="policy" value="{{ k }}" {{ 'checked' if k == cur }}>
+        <span><b>{{ l }}</b><span class="small muted">{{ d }}</span></span></label>
+      {% endfor %}
+    </div>
+    <div class="rowflex polfields">
+      <label class="field"><span class="label">Album Artist <span class="faint">(empty: {{ 'Various Artists' if cur in ('various', 'single', 'collection') else 'the music director from the match' }})</span></span>
+        <input name="albumartist" value="{{ (pol.albumartist if pol else (sug[1] if sug and sug[1] else '')) or '' }}" placeholder="{{ a.album_artist or cfg.VARIOUS_ARTISTS }}"></label>
+      <label class="field"><span class="label">Album <span class="faint">(empty: from the match{{ ', or the folder name for a collection' }})</span></span>
+        <input name="album" value="{{ (pol.album if pol else (sug[2] if sug and sug[2] else '')) or '' }}" placeholder="{{ a.title or '' }}"></label>
+    </div>
+    <div class="dgfoot">
+      <button class="btn sm primary" data-confirm="Write this to all {{ n_songs }} files of the folder (album artist, album, release type)? Undo is below.">Save &amp; write to all {{ n_songs }} files</button>
+      {% if pol %}<button class="btn sm" formaction="{{ url_for('web.folders_clear') }}" data-noconfirm>Remove decision</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% if plex_job %}<div class="note {{ '' if plex_job.ok is none else ('' if plex_job.ok else 'warn') }}">Plex: {{ plex_job.msg }}{% if plex_job.at %} · {{ plex_job.at|ago }}{% endif %}</div>{% endif %}
+{% if a.sent_back and a.status in ('queued', 'analyzing', 'review', 'nomatch', 'error') %}
+  <div class="note sentnote">{{ icon('tag') }}<span><b>You sent this back for review</b> {{ a.sent_from or '' }} · {{ a.sent_back|ago }}.
+    Change any field below, or pick the right album under <b>Wrong album?</b>, then approve.</span></div>{% endif %}
+{% if p and p.collection %}<div class="note"><b>Collection:</b> these songs come from {{ p.album.films }} different films,
+  so they're kept together as one compilation album named after the folder. Each song keeps its own year,
+  composer and singers, and its film is stored in the Grouping tag. Album Artist is the shared music director,
+  or {{ cfg.VARIOUS_ARTISTS }} when they differ.</div>
+{% elif p and p.fallback %}<div class="note warn">No album matched on {{ cfg.SOURCES|map('srclabel')|join(' or ') }}. Tracks were looked up one by one; album name and music director are a best guess from those results. Pick the right album under <b>Wrong album?</b> if you can find it.</div>{% endif %}
+{% if p and p.auto and cfg.AUTO_APPROVE == 'on' and not p.auto.ok and a.status in ('review', 'nomatch') %}
+  <div class="small muted autonote">Not auto-approved: {{ p.auto.why }}</div>{% endif %}
+{% if p and p.notes %}<div class="small muted">{{ p.notes|join(' · ') }}</div>{% endif %}
+{% if a.overrides %}<div class="small muted">Kept from your earlier edits:
+  {% for k, v in a.overrides.items() %}{{ {'album': 'Album', 'albumartist': 'Album artist', 'date': 'Release date', 'genre': 'Genre', 'label': 'Record label'}.get(k, k) }} “{{ v }}”{{ ', ' if not loop.last }}{% endfor %}.
+  Change them above to replace them.</div>{% endif %}
+
+{% set working = a.status in ('queued','analyzing','applying') %}
+{% if working %}
+  <div class="working" id="working" data-aid="{{ a.id }}" data-updated="{{ a.updated }}">
+    <span class="dot live"></span>
+    <span id="working-text">{{ {'queued': 'Waiting to analyze', 'analyzing': 'Analyzing', 'applying': 'Writing tags'}[a.status] }}…</span>
+    <span class="muted">This page reloads by itself when it's done{% if p %}; the values below are from the previous match{% endif %}.</span>
+  </div>
+{% endif %}
+
+<div class="cols">
+<div class="main {{ 'stale' if working }}">
+{% if p %}
+<form method="post" action="{{ url_for('web.album_apply', aid=a.id) }}" id="applyform">
+  <section class="card" aria-labelledby="tags-h">
+    <h2 id="tags-h">Album tags</h2>
+    <div class="grid4">
+      <label class="field"><span class="label">Album</span><input name="a-album" value="{{ p.album.album }}"></label>
+      <label class="field"><span class="label">Album artist · music director</span><input name="a-albumartist" value="{{ p.album.album_artist }}" list="aa-list"></label>
+      <label class="field"><span class="label">Release date</span><input name="a-date" value="{{ p.album.release_date or p.album.date }}" inputmode="numeric" placeholder="YYYY or YYYY-MM-DD" title="A year, or the full date (YYYY-MM-DD): Plex shows it as Originally Available"></label>
+      <label class="field"><span class="label">Genre</span><input name="a-genre" value="{{ p.album.genre }}"></label>
+      <label class="field"><span class="label">Record label</span><input name="a-label" value="{{ p.album.label or '' }}"></label>
+      <datalist id="aa-list"><option value="{{ cfg.VARIOUS_ARTISTS }}">{% if src_artist %}<option value="{{ src_artist }}">{% endif %}{% if p.md_check %}{% for c in p.md_check.composers %}<option value="{{ c }}">{% endfor %}{% endif %}</datalist>
+    </div>
+    {% set md = p.md_check %}
+    {% if md and md.status == 'agree' %}
+      <div class="small okline mdcheck">{{ icon('check') }} TMDB agrees: {{ md.composers|join(', ') }} composed
+        <a class="link" href="{{ md.url }}" target="_blank" rel="noopener">{{ md.film }}{% if md.year %} ({{ md.year }}){% endif %} {{ icon('external') }}</a></div>
+    {% elif md and md.status in ('differ', 'unsure') %}
+      <div class="note {{ 'warn' if md.status == 'differ' else '' }} mdcheck">
+        <span>TMDB lists <b>{{ md.composers|join(', ') }}</b> as the music director of
+        <a class="link" href="{{ md.url }}" target="_blank" rel="noopener">{{ md.film }}{% if md.year %} ({{ md.year }}){% endif %} {{ icon('external') }}</a>{% if md.status == 'unsure' %}, a film with the same name (TMDB has more than one, so this may be another film){% endif %}.
+        The sources say <b>{{ md.checked }}</b>.</span>
+        {% for c in md.composers[:3] %}<button type="button" class="btn xs" onclick="this.form.elements['a-albumartist'].value = this.dataset.name" data-name="{{ c }}">Use {{ c }}</button>{% endfor %}
+      </div>
+    {% endif %}
+    <div class="opts">
+      <label class="check"><input type="checkbox" name="rename" {{ 'checked' if cfg.RENAME_ENABLED }}> Rename files to <code>{{ cfg.RENAME_PATTERN }}</code></label>
+      <label class="field"><span class="label">Cover art</span>
+        <select name="artwork">
+          <option value="missing" {{ 'selected' if cfg.DEFAULT_ARTWORK == 'missing' }}>Add where missing ({{ p.art.total - p.art.current }} of {{ p.art.total }})</option>
+          <option value="all" {{ 'selected' if cfg.DEFAULT_ARTWORK == 'all' }}>Replace on all tracks</option>
+          <option value="none" {{ 'selected' if cfg.DEFAULT_ARTWORK == 'none' }}>Don't touch</option>
+        </select></label>
+      <label class="field"><span class="label">Lyrics</span>
+        <select name="lyrics">
+          <option value="missing" {{ 'selected' if cfg.DEFAULT_LYRICS == 'missing' }}>Add where missing</option>
+          <option value="all" {{ 'selected' if cfg.DEFAULT_LYRICS == 'all' }}>Replace existing</option>
+          <option value="none" {{ 'selected' if cfg.DEFAULT_LYRICS == 'none' }}>Don't touch</option>
+        </select></label>
+    </div>
+  </section>
+
+  <div class="tablewrap">
+    <table class="tracks csort cards">
+      <colgroup>
+        <col class="c-ck"><col class="c-file"><col class="c-title"><col class="c-artist">
+        <col class="c-n"><col class="c-n"><col class="c-time"><col class="c-match"><col class="c-lyr"><col class="c-other">
+      </colgroup>
+      <thead><tr>
+        <th class="ck nosort"><input type="checkbox" checked onclick="toggleInc(this)"></th>
+        <th data-type="text">File</th><th data-type="text">Title</th><th data-type="text">Artist (singers)</th>
+        <th class="num" data-type="num">#</th><th class="num" data-type="num">Disc</th>
+        <th class="num" data-type="num">Time</th><th data-type="num">Match</th><th data-type="num">Lyrics</th>
+        <th data-type="num">Other changes</th>
+      </tr></thead>
+      <tbody>
+      {% for f in p.files %}
+        {% set i = loop.index0 %}
+        {% set st = f.source_track or f.itunes_track %}
+        {% set kind = f.match if f.match is defined else ('album' if f.itunes_track else None) %}
+                <tr class="{{ 'unmatched' if not kind }}">
+          <td class="ck c-ck"><input type="checkbox" class="inc" name="f-{{ i }}-include" {{ 'checked' if kind }} aria-label="Include {{ f.file }}"></td>
+          <td class="fname c-file">
+            <div>{{ f.file }}</div>
+            {% if f.rename_to %}<div class="to">→ {{ f.rename_to }}</div>{% endif %}
+          </td>
+          {% for k in ('title','artist') %}
+            <td class="c-{{ k }} {{ 'chg-' ~ f.changes[k] if k in f.changes }}" data-label="{{ 'Title' if k == 'title' else 'Singers' }}">
+              {% if k in f.changes and f.current[k] %}<div class="old" title="{{ f.current[k] }}">{{ f.current[k] }}</div>{% endif %}
+              <input name="f-{{ i }}-{{ k }}" value="{{ f.new[k] if f.new.get(k) else f.current[k] }}" title="{{ f.new[k] if f.new.get(k) else f.current[k] }}">
+            </td>
+          {% endfor %}
+          {% for k in ('tracknumber','discnumber') %}
+            <td class="num c-{{ k }} {{ 'chg-' ~ f.changes[k] if k in f.changes }}" data-label="{{ 'Track' if k == 'tracknumber' else 'Disc' }}">
+              <input class="n" inputmode="numeric" name="f-{{ i }}-{{ k }}" value="{{ f.new[k] if f.new.get(k) else f.current[k] }}">
+            </td>
+          {% endfor %}
+          <td class="num muted c-time" data-label="Length" data-sort="{{ f.duration }}">{{ f.duration|mmss }}{% if st %}<br><small>{{ st.duration|mmss }}</small>{% endif %}</td>
+          <td class="c-match" data-label="Match" data-sort="{{ f.score if kind else -1 }}">
+            {% if kind %}
+              {% set fp = (f.score * 10)|round|int %}<span class="conf {{ 'c-ok' if fp >= 95 else 'c-warn' if fp >= 80 else 'c-bad' }}">{{ fp }}%</span>
+              {% if kind == 'track' %}
+                <div class="small muted" title="Not in the album's track list — matched as a single song{% if st.album %} from “{{ st.album }}”{% endif %}">song · {{ st.source|srclabel }}{% if st.album and st.album != p.album.album %}<br><span class="warn">from {{ st.album }}</span>{% endif %}</div>
+              {% endif %}
+              {% if st and st.via == 'shazam' %}
+                <div class="small"><span class="tag src" style="white-space: nowrap" title="Shazam heard “{{ f.sound.title if f.sound else st.title }}”{% if f.sound and f.sound.artist %} by {{ f.sound.artist }}{% endif %}{% if f.sound and f.sound.album %} from “{{ f.sound.album }}”{% endif %}. Check it before approving.">by sound</span></div>
+              {% endif %}
+            {% else %}
+              <span class="tag bad">no match</span>
+            {% endif %}
+          </td>
+          <td class="c-lyr" data-label="Lyrics" data-sort="{{ 3 if f.synced else 2 if f.lyrics else 1 if f.has_lyrics else 0 }}">
+            {% set note = f.lyrics_note or (f.mxm.error if f.mxm and f.mxm.error else '') %}
+            {% if f.synced %}<span class="tag good" title="Synced lyrics from {{ (f.lyrics_source or 'musixmatch')|srclabel }} (.lrc)">synced</span>
+            {% elif f.lyrics %}<span class="tag good" title="Plain lyrics from {{ (f.lyrics_source or 'musixmatch')|srclabel }}">plain{% if f.lyrics_source == 'jiosaavn' %} · saavn{% endif %}</span>
+            {% elif note == 'instrumental' %}<span class="tag">instr.</span>
+            {% elif f.mxm and f.mxm.error %}<span class="tag bad" title="{{ f.mxm.error }}">error</span>
+            {% else %}<span class="tag" title="{{ note or 'No lyrics found' }}">none</span>{% endif %}
+            {% if f.has_lyrics %}<span class="tag" title="File already has embedded lyrics">has</span>{% endif %}
+          </td>
+          <td class="small c-other" data-label="Also changes" data-sort="{{ f.changes|length if kind else -1 }}">
+            {% if not kind %}{% set wk = f.changes.keys()|list if f.changes else (wide.keys()|select('in', ['album', 'albumartist', 'genre', 'date', 'compilation'])|list) %}
+              <span class="muted">Not found on any source{% if wk %}: gets the album's tags ({{ wk|join(', ') }}); its title and singers stay as they are{% else %} — file left as is{% endif %}. Fix the title and re-analyze to match it fully.</span>
+            {% else %}
+            {% for k, kd in f.changes.items() if k not in ('title','artist','tracknumber','discnumber') %}
+              <span class="tag {{ kd }}" title="{{ f.current[k] or '(empty)' }} → {{ f.new[k] }}">{{ k }}</span>
+            {% else %}<span class="muted">—</span>{% endfor %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="legend"><span class="tag fill">fill</span> empty tag gets a value · <span class="tag fix">fix</span> existing value is replaced · hover or tap a tag to see old → new · <b>song</b> = found individually, not in the album's track list · <b>by sound</b> = identified by Shazam from the audio</div>
+
+  <div class="actionbar">
+    <button class="btn primary" {{ 'disabled' if working }}>Approve &amp; write tags</button>
+    <button class="btn" name="next" value="1" {{ 'disabled' if working }}>Approve &amp; next</button>
+    <span class="spacer"></span>
+    <button class="btn" formaction="{{ url_for('web.album_action', aid=a.id, action='reanalyze') }}">Re-analyze</button>
+    <button class="btn" formaction="{{ url_for('web.album_action', aid=a.id, action='skip') }}"
+            data-confirm="Skip this album? Its tags stay exactly as they are: nothing is written, and scans, the watcher and a library-wide reset leave it alone. Re-check it any time to look again."
+            title="The tags are already right: leave this album as it is, now and on later scans">Skip</button>
+    <button class="btn danger" formaction="{{ url_for('web.album_action', aid=a.id, action='reject') }}"
+            title="Wrong match: nothing is written; the album is checked again on the next scan">Reject</button>
+  </div>
+</form>
+{% elif a.status not in ('queued','analyzing') %}
+  <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='reanalyze') }}">
+    <button class="btn primary">Analyze again</button>
+  </form>
+{% endif %}
+</div>
+
+<aside class="acol" id="wrong">
+  <section class="card">
+    <h2 class="h3">Wrong album?</h2>
+    {% set curref = ((p.album.collection_id if p.album.collection_id is string else 'itunes:' ~ p.album.collection_id)
+                     if p and p.album.collection_id else '') %}
+    {% if a.candidates %}
+      <ul class="cands">
+      {% for c in a.candidates %}
+        {% set cref = c.ref or ('itunes:' ~ c.collection_id) %}
+        <li class="{{ 'cur' if cref == curref }}">
+          <div class="noimg" aria-hidden="true">♪{% if c.thumb or c.artwork %}<img src="{{ c.thumb or c.artwork }}" alt="" loading="lazy" onerror="this.remove()">{% endif %}</div>
+          <div><b>{{ c.album }}</b><br><span class="muted">{{ c.album_artist }} · {{ (c.date or '')[:4] }} · {{ c.track_count }} tr{% if c.genre %} · {{ c.genre }}{% endif %}</span>
+            <span class="badge src">{{ (c.source or 'itunes')|srclabel }}</span></div>
+          <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='rematch') }}" class="usebtn">
+            <input type="hidden" name="collection_id" value="{{ cref }}">
+            <button class="btn xs" title="score {{ c.score }}">Use</button>
+          </form>
+        </li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+    <div class="rowform">
+      <select id="itsrc" aria-label="Source">
+        {% for s in cfg.SOURCES %}<option value="{{ s }}">{{ s|srclabel }}</option>{% endfor %}
+      </select>
+      <input id="itq" type="search" placeholder="Search albums…" value="{{ (p.query.album if p else '') }}" aria-label="Album search">
+    </div>
+    <button class="btn sm" type="button" id="itbtn" onclick="itSearch({{ a.id }})">{{ icon('search') }} Search</button>
+    <ul class="cands" id="itres"></ul>
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='rematch') }}" class="rowform usebtn">
+      <input name="collection_id" class="mono" placeholder="…or paste an album URL" aria-label="Album URL" title="Apple Music, JioSaavn, Wikipedia, Discogs or Deezer link">
+      <button class="btn sm">Match</button>
+    </form>
+  </section>
+
+  {% if plex_meta %}
+  <section class="card plexextras">
+    <h2 class="h3">In Plex</h2>
+    <p class="small muted">Kept in Plex, not in the files; set when the album is written.</p>
+    {% if plex_meta.collections %}<div class="small"><span class="label">Collections</span> {% for c in plex_meta.collections %}<span class="tag">{{ c }}</span>{% endfor %}</div>{% endif %}
+    {% if plex_meta.moods %}<div class="small"><span class="label">Moods</span> {% for m in plex_meta.moods %}<span class="tag">{{ m }}</span>{% endfor %}</div>{% endif %}
+    {% if plex_meta.review %}
+      <details class="small"><summary><span class="label">Review</span> from Wikipedia, “{{ plex_meta.review.title }}”</summary>
+        {% for para in plex_meta.review.text.split('\n\n') %}<p>{{ para }}</p>{% endfor %}
+        <p class="muted">CC BY-SA 4.0 · <a class="link" href="{{ plex_meta.review.url }}" target="_blank" rel="noopener">{{ plex_meta.review.url }}</a></p>
+      </details>
+    {% elif cfg.PLEX_REVIEW %}<div class="small muted"><span class="label">Review</span> none: no Wikipedia page with this film's year and music director</div>{% endif %}
+    {% if plex_meta.last %}<div class="small muted">{% if plex_meta.last.error %}<span class="bad">Last update failed ({{ plex_meta.last.at|ago }}): {{ plex_meta.last.error }}</span>{% else %}Last sent to Plex {{ plex_meta.last.at|ago }}{% endif %}</div>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if backups %}
+  <section class="card">
+    <h2 class="h3">Changes on disk</h2>
+    <ul class="plain">
+    {% for b in backups %}
+      <li>{{ b.created|ago }} · {{ b.n }} file(s) {% if b.restored %}<span class="muted">(undone)</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+    {% if backups and not backups[0].restored %}
+    <form method="post" action="{{ url_for('web.album_action', aid=a.id, action='undo') }}"
+          data-confirm="Restore the original tags and file names for this album?">
+      <button class="btn sm danger">Undo last write</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</aside>
+</div>
+{% endblock %}

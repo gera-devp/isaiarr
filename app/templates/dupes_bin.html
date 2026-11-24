@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% block title %}Bin · Duplicates · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <a class="back" href="{{ url_for('web.duplicates_page') }}">{{ icon('back') }} Duplicates</a>
+    <h1 class="h1">Bin</h1>
+    <p class="subtitle">Extra copies you removed, kept in <code>{{ bin_dir }}</code> (hidden from Plex).
+      {% if cfg.DUPES_BIN_DAYS %}Files older than {{ cfg.DUPES_BIN_DAYS }} days are deleted for good each night.{% else %}Nothing is deleted until you empty the bin.{% endif %}</p>
+  </div>
+  {% if items %}
+  <div class="tools">
+    <form method="post" action="{{ url_for('web.duplicates_empty') }}" data-confirm="Delete all {{ items|length }} file(s) in the bin for good? This can't be undone.">
+      <button class="btn danger">{{ icon('trash') }} Empty bin · {{ st.bin_size|bytes }}</button></form>
+  </div>
+  {% endif %}
+</header>
+
+{% if not items %}
+  <div class="empty"><div class="h2">The bin is empty</div><p>Copies you remove on the Duplicates page show up here first.</p></div>
+{% else %}
+<div class="tablecard">
+  <table class="list cards">
+    <thead><tr><th>Song</th><th>Came from</th><th class="num">Size</th><th>Moved</th><th></th></tr></thead>
+    <tbody>
+    {% for m in items %}
+      <tr>
+        <td class="c-title"><span class="t1">{{ m.title or m.orig_path.rsplit('/', 1)[-1] }}</span></td>
+        <td class="path" data-label="Came from" title="{{ m.orig_path }}">{{ m.orig_path|rel }}</td>
+        <td class="num mono small muted" data-label="Size">{{ m.size|bytes }}</td>
+        <td class="small muted nowrap" data-label="Moved">{{ m.moved|ago }}</td>
+        <td class="r"><form method="post" action="{{ url_for('web.duplicates_restore', mid=m.id) }}"><button class="btn xs">Restore</button></form></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

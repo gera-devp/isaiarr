@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, cover, mosaic with context %}
+{% block title %}Playlists · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Playlists</h1>
+    <p class="subtitle">Made only from songs you own, and saved straight into Plex.</p>
+  </div>
+  <div class="tools">
+    <span class="badge {{ 'accent' if ai_on else 'okb' }}" title="Settings → AI & playlists">{{ icon('sparkle') }}&nbsp;{{ ai_label if ai_on else 'AI not set up' }}</span>
+    {% if ai_on %}<span class="small muted">This month: {{ '{:,}'.format(spend['in'] + spend['out']) }} tokens{% if not ai_free %} · ${{ '%.2f'|format(spend.cost) }}{% endif %}</span>{% endif %}
+  </div>
+</header>
+
+{% if not st.songs %}
+  <div class="note warn">The song index is empty{% if st.running %} and being built now ({{ st.done }} of {{ st.total }} folders){% endif %}.
+    Playlists are made from it. {% if not st.running %}<a class="link" href="#library">Build it in Song library</a>.{% endif %}</div>
+{% elif st.songs and not st.in_plex %}
+  <div class="note">None of your songs are linked to Plex yet, so playlists can be previewed but not saved.
+    {% if cfg.PLEX_URL %}Run <b>Sync with Plex</b> in Song library.{% else %}Set up Plex in <a class="link" href="{{ url_for('web.settings', tab='plex') }}">Settings → Plex</a>.{% endif %}</div>
+{% endif %}
+
+<div class="plwrap">
+<section class="card composer" aria-labelledby="new-h">
+  <div class="cardhead">
+    <h2 id="new-h">New playlist</h2>
+    <nav class="chips" aria-label="How to start">
+      <a class="chip" href="{{ url_for('web.playlists_page', tab='describe') }}" {% if tab == 'describe' %}aria-current="page"{% endif %}>{{ icon('sparkle') }} Describe it</a>
+      <a class="chip" href="{{ url_for('web.playlists_page', tab='song') }}" {% if tab == 'song' %}aria-current="page"{% endif %}>{{ icon('playlist') }} From a song</a>
+      <a class="chip" href="{{ url_for('web.playlists_page', tab='radio') }}" {% if tab == 'radio' %}aria-current="page"{% endif %}>{{ icon('radio') }} Radio</a>
+    </nav>
+  </div>
+
+  <p class="muted small modeline">{% if tab == 'describe' %}Say what you're in the mood for. The AI is given your library's own names and can only pick songs you have.
+    {% elif tab == 'song' %}Pick one song and what to match on. Good for "more like this".
+    {% else %}No AI: songs are scored on shared music director, singers, era and mood. Free, instant, works offline.{% endif %}</p>
+  <form method="post" action="{{ url_for('web.playlist_new') }}" id="plform" class="kvlist" style="gap: 18px">
+    <input type="hidden" name="mode" value="{{ tab }}">
+
+    {% if tab == 'describe' %}
+      {% if not ai_on %}<div class="note warn">Describing a playlist needs an AI service. Add a free Gemini or Groq key in
+        <a class="link" href="{{ url_for('web.settings', tab='ai') }}">Settings → AI & playlists</a>, or use <b>Radio</b>, which needs no AI.</div>{% endif %}
+      <label class="field"><span class="label">What should it sound like?</span>
+        <textarea name="prompt" id="prompt" rows="3" placeholder="e.g. Rainy evening Ilaiyaraaja melodies, mostly SPB and Janaki" required>{{ prompt }}</textarea></label>
+      <div class="tokens examples" role="group" aria-label="Examples">
+        <span class="small muted">Try:</span>
+        {% for e in examples %}<button type="button" data-fill="{{ e }}">{{ e }}</button>{% endfor %}
+      </div>
+    {% else %}
+      <div class="field">
+        <label class="label" for="seedq">{{ 'Start from this song' if tab == 'song' else 'Start from a song (optional)' }}</label>
+        <input type="hidden" name="seed" id="seed" value="{{ seed.id if seed else '' }}">
+        <div id="seedpick" class="seedpick {{ 'has' if seed }}">
+          <div class="seedsel" id="seedsel">{% if seed %}<b>{{ seed.title }}</b> <span class="muted">{{ seed.artist }} · {{ seed.film }} {{ seed.year or '' }}</span>{% endif %}</div>
+          <input id="seedq" type="search" placeholder="Search your songs by title, film or singer…" autocomplete="off">
+          <ul class="seedres" id="seedres" role="listbox"></ul>
+        </div>
+      </div>
+      <fieldset class="field">
+        <legend class="label" style="margin-bottom: 6px">Match on</legend>
+        <div class="chiplist">
+          {% for d, l in dims %}{% if d not in ('mood', 'sound') or have_profiles or ai_on %}
+            <label class="tagchip"><input type="checkbox" name="dim-{{ d }}" {{ 'checked' if d in ('director', 'singers', 'era', 'mood') }}><span>{{ l }}</span></label>
+          {% endif %}{% endfor %}
+        </div>
+        {% if tab == 'song' and not ai_on %}<span class="help">AI is off, so songs are matched on shared music director, singers and era.</span>{% endif %}
+      </fieldset>
+    {% endif %}
+
+    <details class="more" {{ 'open' if tab == 'radio' }}>
+      <summary>Filters</summary>
+      <div class="grid fields" id="filters">
+        <label class="field"><span class="label">Music director</span>
+          <select name="f_director"><option value="">Any</option>
+            {% for n, c in directors %}<option value="{{ n }}">{{ n }} ({{ c }})</option>{% endfor %}</select></label>
+        <label class="field"><span class="label">Singer</span>
+          <input name="f_singer" list="singer-list" placeholder="Any" autocomplete="off">
+          <datalist id="singer-list">{% for n, c in singers %}<option value="{{ n }}">{% endfor %}</datalist></label>
+        <label class="field"><span class="label">Decade</span>
+          <select name="f_decade"><option value="">Any</option>
+            {% for d, c in decades if d %}<option value="{{ d }}">{{ d }}s ({{ c }})</option>{% endfor %}</select></label>
+        <label class="field"><span class="label">Genre</span>
+          <select name="f_genre"><option value="">Any</option>
+            {% for g, c in genres %}<option value="{{ g }}">{{ g }} ({{ c }})</option>{% endfor %}</select></label>
+        {% if have_profiles %}
+        <label class="field"><span class="label">Mood</span>
+          <select name="f_mood"><option value="">Any</option>{% for m in moods %}<option value="{{ m }}">{{ m|capitalize }}</option>{% endfor %}</select></label>
+        {% endif %}
+        <label class="field"><span class="label">Your Plex rating</span>
+          <select name="f_rating"><option value="0">Any</option><option value="3">3 stars or more</option><option value="4">4 stars or more</option></select></label>
+        <label class="check sub"><input type="checkbox" name="f_lyrics"> Only songs with lyrics</label>
+      </div>
+    </details>
+
+    <div class="grid fields">
+      <label class="field"><span class="label">Songs</span><input type="number" name="size" min="5" max="200" value="{{ cfg.PLAYLIST_SIZE }}"></label>
+      <label class="field"><span class="label">Name (optional)</span><input name="title" placeholder="Suggested for you"></label>
+    </div>
+
+    <div class="pipeline flow" aria-label="What happens">
+      {% if tab == 'describe' %}{% set flow = ['Read your request', 'Narrow your library', 'AI picks by song ID', 'You review', 'Save to Plex'] %}
+      {% elif tab == 'song' %}{% set flow = ['Find similar songs', 'AI picks the best' if ai_on else 'Score and pick', 'You review', 'Save to Plex'] %}
+      {% else %}{% set flow = ['Apply filters', 'Score and shuffle', 'You review', 'Save to Plex'] %}{% endif %}
+      {% for f in flow %}<span class="step">{{ f }}</span>{% if not loop.last %}<span class="arrow" aria-hidden="true">→</span>{% endif %}{% endfor %}
+    </div>
+
+    <div class="genbar">
+      <span class="small muted" id="poolinfo"><b id="pool">{{ '{:,}'.format(st.in_plex or st.songs) }}</b> songs to choose from
+        {% if tab != 'radio' and ai_on %} · {{ ai_label }}
+          · <span id="estcost">{{ 'free tier' if ai_free else '≈ $' ~ ('%.3f'|format(est_cost)) }}</span>{% endif %}
+        {% if tab == 'radio' %} · no AI, free{% endif %}</span>
+      <span class="spacer"></span>
+      <button class="btn primary big" {{ 'disabled' if (tab == 'describe' and not ai_on) or not st.songs }}>
+        {{ icon('sparkle' if tab != 'radio' else 'radio') }} {{ 'Make playlist' if tab != 'radio' else 'Make radio' }}</button>
+    </div>
+  </form>
+</section>
+
+<aside class="plside">
+<section class="card" id="library" aria-labelledby="lib-h">
+  <h2 id="lib-h">Song library</h2>
+  <div class="libstats">
+    <div class="tile"><span class="small muted">Songs indexed</span><span class="num" id="n-songs">{{ '{:,}'.format(st.songs) }}</span>
+      <span class="small faint">{% if st.running %}building: {{ st.done }} / {{ st.total }} folders{% elif st.last_index %}checked {{ st.last_index|ago }}{% else %}not built yet{% endif %}</span></div>
+    <div class="tile"><span class="small muted">Linked to Plex</span><span class="num">{{ '{:,}'.format(st.in_plex) }}</span>
+      <span class="small faint">{% if st.plex_error %}<span class="bad">last sync failed</span>{% elif st.last_plex %}synced {{ st.last_plex|ago }}{% else %}not synced yet{% endif %}</span></div>
+    <div class="tile"><span class="small muted">Described by AI</span><span class="num">{{ '{:,}'.format(st.profiled) }}</span>
+      {% set pct_prof = ((st.profiled / st.songs * 100) if st.songs else 0)|round|int %}
+      <div class="progress thin" role="progressbar" aria-label="Songs described" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct_prof }}"><div style="width: {{ pct_prof }}%"></div></div>
+      <span class="small faint">{% if prof.running %}working: {{ prof.done }} / {{ prof.total }}{% elif prof.error %}<span class="bad">stopped: {{ prof.error }}</span>{% else %}{{ '{:,}'.format(prof.left) }} to go{% endif %}</span></div>
+  </div>
+  <div class="kvlist" style="gap: 8px">
+    <form method="post" action="{{ url_for('web.songs_action', action='index') }}"><input type="hidden" name="tab" value="{{ tab }}">
+      <button class="btn sm wide" {{ 'disabled' if st.running }}>{{ icon('refresh') }} {{ 'Indexing…' if st.running else 'Re-check songs' }}</button></form>
+    <form method="post" action="{{ url_for('web.songs_action', action='plexsync') }}"><input type="hidden" name="tab" value="{{ tab }}">
+      <button class="btn sm wide" {{ 'disabled' if not cfg.PLEX_URL }}>Sync with Plex</button></form>
+    {% if prof.running %}
+      <form method="post" action="{{ url_for('web.songs_action', action='profiles-stop') }}"><input type="hidden" name="tab" value="{{ tab }}">
+        <button class="btn sm wide">{{ icon('pause') }} Stop describing</button></form>
+    {% else %}
+      <form method="post" action="{{ url_for('web.songs_action', action='profiles') }}" data-confirm="Ask the AI to label {{ '{:,}'.format(prof.left) }} songs with mood, type and tempo? About {{ (prof.left / 120)|round(0, 'ceil')|int }} requests, run slowly in the background.">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <button class="btn sm wide" {{ 'disabled' if not ai_on or not prof.left }}>{{ icon('sparkle') }} Describe songs</button></form>
+    {% endif %}
+  </div>
+  <p class="small muted">Updated whenever Isaiarr writes an album and re-checked each night with Plex.
+    <b>Describe songs</b> labels each song once with mood, type and tempo, so playlists can filter by mood.
+    Only titles, singers, music directors, films and years are sent to the AI.</p>
+</section>
+</aside>
+</div>
+
+<section class="card" aria-labelledby="hist-h">
+  <div class="cardhead"><h2 id="hist-h">Recent playlists</h2>{% if history %}<span class="small muted">{{ history|length }} shown</span>{% endif %}</div>
+  {% if history %}
+  <ul class="pltiles">
+    {% for h in history %}
+      <li><a href="{{ url_for('web.playlist_view', pid=h.id) }}" class="pltile {{ h.status }}">
+        {{ mosaic(h.mosaic) }}
+        <span class="txt">
+          <span class="t1" title="{{ h.title or h.prompt or 'Playlist' }}">{{ h.title or (h.prompt or 'Playlist')[:60] }}</span>
+          <span class="t2">{{ {'describe': 'Described', 'song': 'From a song', 'radio': 'Radio'}[h.mode] }}{% if h.n %} · {{ h.n }} songs{% endif %} · {{ h.created|ago }}</span>
+          <span class="t3">{% if h.status == 'working' %}<span class="warn">Making…</span>{% elif h.status == 'error' %}<span class="bad">Failed</span>
+            {% elif h.saved %}<span class="ok">In Plex</span>{% else %}Not saved yet{% endif %}{% if h.cost %} · ${{ '%.3f'|format(h.cost) }}{% endif %}</span>
+        </span>
+      </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">Nothing yet. Your playlists show up here, ready to open again or remake.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, pager, refresh_btn, sort_th, sort_picker with context %}
+{% from "_libtabs.html" import libtabs with context %}
+{% block title %}Library · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Library</h1>
+    <p class="subtitle">Every album Isaiarr has looked at, whatever its state. Select albums to approve, re-check or reject them together; hold <kbd>Shift</kbd> to tick a range.</p>
+  </div>
+  <div class="tools">
+    <form class="searchbox" method="get" role="search">
+      {{ icon('search') }}
+      <label for="lsearch" class="sr-only">Search library</label>
+      <input id="lsearch" type="search" name="q" value="{{ q }}" placeholder="Folder, album, music director…" enterkeyhint="search">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <input type="hidden" name="sort" value="{{ srt.key }}"><input type="hidden" name="dir" value="{{ srt.dir }}">
+    </form>
+    {{ refresh_btn() }}
+  </div>
+</header>
+{{ libtabs('albums') }}
+{% if unchecked %}
+<div class="note warn rowflex">
+  <span><b>{{ '{:,}'.format(unchecked) }} of {{ '{:,}'.format(folders) }} music folders haven't been checked yet</b>, so they aren't in this list.
+    This list shows one entry per folder Isaiarr has analyzed.</span>
+  <form method="post" action="{{ url_for('web.library_check_unchecked') }}"
+        data-confirm="Analyze the {{ unchecked }} folder(s) Isaiarr hasn't checked yet? Nothing is written: changes wait in the review queue for you.">
+    <button class="btn sm primary">Check them</button></form>
+</div>
+{% endif %}
+
+<nav class="chips" aria-label="Status">
+  {% for key, label in tabs %}
+    {% set n = counts.get(key, 0) if key not in ('queued', 'all') else
+              (counts.get('queued', 0) + counts.get('analyzing', 0) + counts.get('applying', 0) if key == 'queued' else counts.values()|sum) %}
+    <a class="chip" href="{{ url_for('web.library', tab=key, sort=srt.key, dir=srt.dir) }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }} · <span class="n">{{ n }}</span></a>
+  {% endfor %}
+  {% if plex_on %}<a class="chip" href="{{ url_for('web.library', tab='plex') }}" {% if tab == 'plex' %}aria-current="page"{% endif %}>Differs in Plex · <span class="n">{{ plex_counts.all }}</span></a>{% endif %}
+</nav>
+
+{% if tab == 'plex' %}
+<section class="card plexdiff">
+  <p>Albums whose tags (what Isaiarr wrote) don't match what Plex shows.
+    {% if plex_synced.at %}Compared with Plex {{ plex_synced.at|ago }}.{% else %}Not compared with Plex yet.{% endif %}</p>
+  <div class="rowflex">
+    <nav class="chips" aria-label="Kind">
+      <a class="chip" href="{{ url_for('web.library', tab='plex') }}" {% if kind == 'all' %}aria-current="page"{% endif %}>All · <span class="n">{{ plex_counts.all }}</span></a>
+      <a class="chip" href="{{ url_for('web.library', tab='plex', kind='artist') }}" {% if kind == 'artist' %}aria-current="page"{% endif %}>Wrong artist · <span class="n">{{ plex_counts.artist }}</span></a>
+      <a class="chip" href="{{ url_for('web.library', tab='plex', kind='details') }}" {% if kind == 'details' %}aria-current="page"{% endif %}>Old details · <span class="n">{{ plex_counts.details }}</span></a>
+    </nav>
+    <form method="post" action="{{ url_for('web.library_plex_check') }}">
+      <button class="btn sm" {{ 'disabled' if plex_st.checking }}>{{ icon('refresh') }} {{ 'Checking…' if plex_st.checking else 'Check against Plex' }}</button></form>
+  </div>
+  <ol class="steps small muted">
+    <li><b>Old details</b> (album name or track titles out of date): select them and press <b>Refresh in Plex</b>.</li>
+    <li><b>Wrong artist</b> (filed under another artist): select them and press <b>Re-add in Plex</b>. A refresh can't move an album to another artist.</li>
+    <li>A few minutes later, press <b>Check against Plex</b> to see what's left.</li>
+  </ol>
+</section>
+{% endif %}
+
+{% if not albums %}
+  <div class="empty"><div class="h2">Nothing here</div>
+    <p>{% if q %}No albums match “{{ q }}”.{% else %}<a class="link" href="{{ url_for('web.scan') }}">Scan a folder</a> to add albums.{% endif %}</p></div>
+{% else %}
+<form method="post" action="{{ url_for('web.bulk') }}" id="listform" class="selectable" data-total="{{ pg.total }}">
+  <input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="kind" value="{{ kind }}">
+  {% if pg.total > albums|length %}
+  <label class="check tight allmatch"><input type="checkbox" name="all_matching">
+    Select all {{ '{:,}'.format(pg.total) }} albums {{ 'matching “' ~ q ~ '”' if q else 'in this view' }}, not just this page</label>
+  {% endif %}
+  <div class="listbar">
+    <label class="check tight"><input type="checkbox" onclick="toggleAll(this)"> All on page</label>
+    {{ sort_picker([('updated','Updated'),('confidence','Match'),('album','Album'),('artist','Music director'),('folder','Folder'),('status','Status'),('tracks','Tracks')], srt) }}
+  </div>
+  <div class="tablecard">
+  <table class="list cards lib">
+    <thead><tr>
+      <th class="ck"><input type="checkbox" onclick="toggleAll(this)" aria-label="Select all on this page"></th>
+      {{ sort_th('Album', 'album', srt) }}{{ sort_th('Music director', 'artist', srt) }}{{ sort_th('Folder', 'folder', srt) }}
+      {{ sort_th('Tracks', 'tracks', srt, 'num') }}{{ sort_th('Match', 'confidence', srt, 'num') }}{{ sort_th('Status', 'status', srt) }}{{ sort_th('Updated', 'updated', srt) }}
+    </tr></thead>
+    <tbody>
+    {% for a in albums %}
+      {% set p = pct(a.confidence) %}
+      {% set low = a.confidence is not none and a.confidence < cfg.LOW_CONFIDENCE %}
+      <tr class="{{ 'low' if low }}" data-href="{{ url_for('web.album', aid=a.id) }}">
+        <td class="ck c-ck"><input type="checkbox" name="ids" value="{{ a.id }}" aria-label="Select {{ a.title or 'album' }}"></td>
+        <td class="c-title"><a class="t1" href="{{ url_for('web.album', aid=a.id) }}">{{ a.title or (a.path|rel).split('/')[-1] }}</a>
+          {% set pol = pols.get(a.path) %}{% set v, pc = a.verify, a.plex_check %}
+          {% if pol or (v and v.n_failed) or pc %}<div class="rowmarks small">
+            {% if pol %}<span class="badge good" title="Your decision for this folder">{{ pol_label[pol.policy] }}</span>{% endif %}
+            {% if v and v.n_failed %}<span class="badge danger" title="Tags that didn't stick after the last write">{{ v.n_failed }} tag(s) didn't stick</span>{% endif %}
+            {% if pc and pc.ok %}<span class="plexok" title="Checked {{ pc.at|ago }}">✓ Plex</span>{% elif pc %}<span class="bad" title="{{ (pc.diffs[0].field ~ ': ' ~ pc.diffs[0].plex) if pc.diffs else 'not found in Plex' }}">✗ Plex</span>{% endif %}
+          </div>{% endif %}
+          {% set d = diffs.get(a.path) %}{% if d and (tab == 'plex' or d.kind == 'artist') %}
+          <div class="plexline small"><span class="badge {{ 'danger' if d.kind == 'artist' else 'fix' }}">{{ 'Wrong artist in Plex' if d.kind == 'artist' else 'Old details in Plex' }}</span>
+            <span class="muted" title="Plex shows: {{ d.plex_artist }} · {{ d.plex_album }}">Plex: {{ d.plex_artist }}{% if d.kind == 'details' %} · {{ d.plex_album }}{% endif %}</span></div>{% endif %}</td>
+        <td class="c-artist">{{ a.album_artist or '—' }}</td>
+        <td class="path c-folder">{{ a.path|rel }}</td>
+        <td class="num mono small muted">{{ a.n_files or '' }}</td>
+        <td class="num c-conf">{% if p is not none %}<span class="conf {{ 'c-ok' if p >= 95 else 'c-warn' if p >= 80 else 'c-bad' }}">{{ p }}%</span>{% endif %}</td>
+        <td class="c-status"><span class="st st-{{ a.status }}">{{ {'uptodate': 'up to date', 'nomatch': 'no match'}.get(a.status, a.status) }}</span>{% if a.auto %} <span class="small faint">auto</span>{% endif %}</td>
+        <td class="muted small c-upd nowrap">{{ a.updated|ago }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="bulk">
+    <span class="muted"><b class="selcount">0</b> selected</span>
+    <span class="spacer"></span>
+    <button class="btn sm primary" name="action" value="approve">Approve</button>
+    <button class="btn sm" name="action" value="reanalyze">Re-check</button>
+    {% if plex_on %}<button class="btn sm" name="action" value="plexrefresh" title="Unlock and refresh the selected albums' details in Plex">Refresh in Plex</button>{% endif %}
+    {% if plex_on %}<button class="btn sm" name="action" value="plexreadd" data-confirm="Re-add the selected albums in Plex, one at a time? Each disappears from Plex for a minute or two and comes back under the album artist in its tags. Ratings and play counts are put back; their tracks drop out of Plex playlists. Your files aren't touched." title="For albums Plex files under the wrong artist">Re-add in Plex</button>{% endif %}
+    <button class="btn sm" name="action" value="review" title="Re-check and keep in the review queue until you approve, even if nothing looks wrong">Send to review</button>
+    <button class="btn sm" name="action" value="skip" title="The tags are already right: take the selected albums out of the review queue and leave them as they are, now and on later scans"
+            data-confirm="Skip the selected albums? Their tags stay exactly as they are, and scans, the watcher and a library-wide reset leave them alone. Re-check any of them to look again.">Skip</button>
+    <button class="btn sm danger" name="action" value="reject">Reject</button>
+    <details class="setaa onlybox">
+      <summary class="btn sm" title="Change just the parts you pick, e.g. only moods and collections in Plex">Update only…</summary>
+      <div class="setaa-box">
+        <div class="onlyhead"><b>Update only…</b><span class="small muted"><b class="selcount">0</b> selected</span></div>
+        <p class="small muted">Pick what to change in the selected albums. Everything else, album artists included, stays as it is.</p>
+        {% if plex_on %}
+        <fieldset class="onlygrp"><legend>In Plex <span class="faint">· nothing in the files changes</span></legend>
+          <div class="onlygrid">
+          {% for k, l in plex_parts.items() %}
+            <label class="check tight{{ ' off' if not plex_part_on[k] }}"><input type="checkbox" name="only" value="{{ k }}"{{ ' disabled' if not plex_part_on[k] }}> {{ l }}</label>
+          {% endfor %}
+          </div>
+          {% if not plex_part_on.values()|select|list|length == plex_part_on|length %}
+          <p class="small faint">Greyed out: switched off in <a class="link" href="{{ url_for('web.settings', tab='plex') }}#row-PLEX_MOODS">Settings → Plex</a>.</p>{% endif %}
+        </fieldset>
+        {% endif %}
+        <fieldset class="onlygrp"><legend>In the files <span class="faint">· re-checked against the album they were matched to</span></legend>
+          <div class="onlygrid">
+          {% for k, v in only_parts.items() %}
+            <label class="check tight"><input type="checkbox" name="only" value="{{ k }}"> {{ v[0] }}</label>
+          {% endfor %}
+          </div>
+          <label class="check tight"><input type="radio" name="only_write" value="review" checked> Show me the changes in the review queue first</label>
+          <label class="check tight"><input type="radio" name="only_write" value="write"> Write straight away when an album passes the auto-approve rules (Settings → Auto-approve); the rest wait for review</label>
+        </fieldset>
+        <p class="small bad" id="only-hint" role="alert" hidden></p>
+        <button class="btn sm primary" name="action" value="only" id="only-go">Update selected albums</button>
+      </div>
+    </details>
+    <details class="setaa">
+      <summary class="btn sm">Set kind of album…</summary>
+      <div class="setaa-box">
+        <label class="field"><span class="label">Kind of album</span>
+          <select name="policy" id="lpolicy">{% for k, l, d in policies %}<option value="{{ k }}">{{ l }} — {{ d }}</option>{% endfor %}</select></label>
+        <label class="field"><span class="label">Album Artist <span class="faint">(empty: from the kind or the match)</span></span>
+          <input name="new_artist" id="new_artist" list="aa-names" autocomplete="off" placeholder="e.g. Ilaiyaraaja or {{ cfg.VARIOUS_ARTISTS }}"></label>
+        <datalist id="aa-names">{% for n in artists %}<option value="{{ n }}">{% endfor %}<option value="{{ cfg.VARIOUS_ARTISTS }}"></datalist>
+        <p class="small muted">Decides the selected albums for good: album artist, album and release type are written to every
+          file of each folder, matched or not, and kept by every re-check. Undo is on each album's page.</p>
+        <button class="btn sm primary" name="action" value="policy" id="setaa-go">Write to selected albums</button>
+      </div>
+    </details>
+  </div>
+  </div>
+  {{ pager(pg, 'albums') }}
+</form>
+{% endif %}
+{% endblock %}

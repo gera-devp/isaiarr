@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% block title %}Home · Isaiarr{% endblock %}
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Home</h1>
+    <p class="subtitle">Your library and Plex side by side, and what's left to do.</p>
+  </div>
+  <div class="tools"><a class="btn" href="{{ url_for('web.scan') }}">{{ icon('scan') }} Scan a folder…</a></div>
+</header>
+
+<section class="card plexlink" aria-live="polite">
+  <div class="plstatus">
+    {% set live = h.live %}
+    <span class="dot {{ 'live' if live.connected else ('off' if not h.plex_on else 'paused') }}" id="pl-dot" aria-hidden="true"></span>
+    <b id="pl-mode">{% if not h.plex_on %}Plex isn't set up{% elif live.connected %}Live link to Plex{% else %}Plex: checking every few minutes{% endif %}</b>
+    <span class="small muted" id="pl-scan">{% if live.scanning %}· {{ live.scanning.title }}{% if live.scanning.progress is not none %} ({{ live.scanning.progress }}%){% endif %}{% endif %}</span>
+    <span class="spacer"></span>
+    <span class="small muted" id="pl-last">{% if live.last_text %}Last change in Plex: {{ live.last_text }} · {{ live.last_event|ago }}{% endif %}</span>
+    {% if not h.plex_on %}<a class="btn sm" href="{{ url_for('web.settings', tab='plex') }}">Set up Plex</a>{% endif %}
+  </div>
+  {% set L, P = h.local, h.plex %}
+  <div class="grid stats cmp">
+    {% for key, label, note in [('artists', 'Album artists', 'one per Album Artist (the singers when it is empty)'),
+                                ('albums', 'Albums', 'one per Album Artist + album name, as Plex groups them'),
+                                ('tracks', 'Tracks', 'audio files')] %}
+    <div class="tile" title="Isaiarr counts {{ note }}">
+      <span class="small muted">{{ label }}</span>
+      <div class="cmpnums">
+        <span><span class="num" id="l-{{ key }}">{{ '{:,}'.format(L[key]) }}</span><span class="small muted">in your files</span></span>
+        {% if h.plex_on %}
+        {% set pv = P[key] if P else none %}
+        <span><span class="num {{ 'ok' if pv == L[key] else 'warn' }}" id="p-{{ key }}">{{ '{:,}'.format(pv) if pv is not none else '…' }}</span><span class="small muted">in Plex</span></span>
+        {% endif %}
+      </div>
+      <span class="small faint" id="d-{{ key }}">{% if P and P[key] != L[key] %}{{ '{:+,}'.format(P[key] - L[key]) }} in Plex{% elif P %}in sync{% endif %}</span>
+    </div>
+    {% endfor %}
+    <div class="tile"><span class="small muted">Album folders</span><span class="num">{{ '{:,}'.format(L.folders) }}</span>
+      <span class="small faint">collections count once here, once per film in Plex</span></div>
+  </div>
+  <p class="small muted" id="pl-at">{% if h.plex_at %}Plex totals updated {{ h.plex_at|ago }}{% if live.connected %}; they follow Plex as it changes{% endif %}.{% endif %}</p>
+</section>
+
+<section class="card" aria-labelledby="todo-h">
+  <div class="cardhead"><h2 id="todo-h" class="h3">To do</h2></div>
+  <ul class="plain todo" id="todo">
+    {% for t in h.todo %}
+    <li><a href="{{ t.url }}"><span class="badge {{ {'bad': 'danger', 'warn': 'fix', 'src': 'src'}[t.tone] }} n">{{ '{:,}'.format(t.n) }}</span>
+      <span>{{ t.text }}</span><span class="go" aria-hidden="true">›</span></a></li>
+    {% else %}
+    <li class="muted">Nothing to do: your files and Plex agree.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card" aria-labelledby="rec-h">
+  <div class="cardhead"><h2 id="rec-h" class="h3">Recent</h2><a class="small link" href="{{ url_for('web.history') }}">All activity</a></div>
+  <div class="console">
+    {% for r in h.recent %}<div class="ln wrap"><span class="lv lv-{{ r.level|upper }}">{{ r.level|upper }}</span> {{ r.message }} <span class="faint">· {{ r.ts|ago }}</span></div>
+    {% else %}<div class="ln ghost">Nothing yet</div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

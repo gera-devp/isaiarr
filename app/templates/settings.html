@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+{% block title %}{{ page_title }} · Settings · Isaiarr{% endblock %}
+{% block bodyclass %}page-settings{% endblock %}
+
+{# ------------------------------------------------------------------ building blocks
+   Every setting is one row: name and explanation on the left, the control on the right
+   (the pattern used by GitHub, Linear, Vercel and macOS settings). Rows sit in boxed groups. #}
+
+{% macro origin_badge(it) -%}
+  {% if it.origin == 'app' %}
+    <span class="origin app" title="Saved here; overrides docker-compose.yml">saved here</span>
+    <button class="linkbtn" name="reset" value="{{ it.key }}" form="resetform" title="Use the compose file / default value again">reset</button>
+  {% elif it.origin == 'env' %}<span class="origin" title="From docker-compose.yml">compose</span>{% endif %}
+  {% if it.restart %}<span class="origin restart" title="Takes effect after a restart">restart</span>{% endif %}
+{%- endmacro %}
+
+{% macro control(it) -%}
+  {% set k = it.key %}
+  {% if it.type == 'bool' %}
+    <label class="switch"><input type="checkbox" id="in-{{ k }}" name="{{ k }}" role="switch" {{ 'checked' if it.value }}><span aria-hidden="true"></span><span class="sr-only">{{ it.label }}</span></label>
+  {% elif it.type == 'choice' and it.radio %}
+    <div class="radios" role="radiogroup" aria-label="{{ it.label }}">
+      {% for v, l in it.choices %}<label class="radio"><input type="radio" name="{{ k }}" value="{{ v }}" {{ 'checked' if v == it.value }}><span>{{ l }}</span></label>{% endfor %}
+    </div>
+  {% elif it.type == 'choice' %}
+    <select id="in-{{ k }}" name="{{ k }}">
+      {% if it.value not in it.choices|map('first')|list %}<option value="{{ it.value }}" selected>{{ it.value }} (from compose)</option>{% endif %}
+      {% for v, l in it.choices %}<option value="{{ v }}" {{ 'selected' if v == it.value }}>{{ l }}</option>{% endfor %}
+    </select>
+  {% elif it.type in ('int', 'float') %}
+    <input id="in-{{ k }}" name="{{ k }}" type="number" inputmode="decimal" class="num" value="{{ it.value }}"
+           {% if it.min is defined %}min="{{ it.min }}"{% endif %} {% if it.max is defined %}max="{{ it.max }}"{% endif %}
+           step="{{ it.step if it.step is defined else 1 }}">
+  {% elif it.type in ('secret', 'password') %}
+    <div class="secretrow">
+      <input id="in-{{ k }}" name="{{ k }}" type="password" class="mono" autocomplete="{{ 'new-password' if it.type == 'password' else 'off' }}"
+             placeholder="{{ '•••••••• saved, type to replace' if it.is_set else 'not set' }}">
+      {% if it.is_set %}<label class="check tight sub small"><input type="checkbox" name="clear-{{ k }}"> remove</label>{% endif %}
+    </div>
+  {% elif it.type == 'fields' %}
+    <div class="tagchips">
+      {% for fld in tag_fields %}<label class="tagchip"><input type="checkbox" name="{{ k }}" value="{{ fld }}" {{ 'checked' if fld in it.value }}><span>{{ fld }}</span></label>{% endfor %}
+    </div>
+  {% else %}
+    <input id="in-{{ k }}" name="{{ k }}" value="{{ it.value or '' }}" spellcheck="false"
+           class="{{ 'mono' if it.type in ('url', 'path', 'pattern') or k.endswith('_URL') }}"
+           {% if it.type == 'url' %}type="url" inputmode="url" placeholder="http://"{% endif %}>
+  {% endif %}
+{%- endmacro %}
+
+{% macro row(it, label=None, help=None, wide=False) -%}
+  <div class="srow {{ 'wide' if wide or it.type in ('fields',) or it.radio }}" id="row-{{ it.key }}" {% if it.provider is defined %}data-provider="{{ it.provider }}"{% endif %}{% if it.fallback is defined %} data-fallback{% endif %}>
+    <input type="hidden" name="k" value="{{ it.key }}">
+    <div class="sinfo">
+      <div class="slabel">{% if it.type == 'bool' or it.radio or it.type == 'fields' %}<span>{{ label or it.label }}</span>{% else %}<label for="in-{{ it.key }}">{{ label or it.label }}</label>{% endif %}
+        {{ origin_badge(it) }}</div>
+      {% if help or it.help %}<p class="shelp">{{ help or it.help }}</p>{% endif %}
+    </div>
+    <div class="sctl">{{ control(it) }}</div>
+  </div>
+{%- endmacro %}
+
+{% macro group(title, desc='') -%}
+  <section class="sgroup">
+    {% if title %}<div class="sghead"><h3>{{ title }}</h3>{% if desc %}<p>{{ desc }}</p>{% endif %}</div>{% endif %}
+    <div class="sbox">{{ caller() }}</div>
+  </section>
+{%- endmacro %}
+
+{% set state_words = {'ok': 'Connected', 'error': 'Last request failed', 'untested': 'Not tested yet', 'off': 'Not set up'} %}
+
+{% block body %}
+<header class="pagehead">
+  <div class="titles">
+    <h1 class="h1">Settings</h1>
+    <p class="subtitle">Saved on the NAS in <code>{{ cfg.DATA_DIR }}/settings.json</code> and applied straight away. Values saved here override <code>docker-compose.yml</code>.</p>
+  </div>
+</header>
+
+{% if result %}<div class="flash" role="status" style="white-space: pre-line">{{ result }}</div>{% endif %}
+
+<div class="settings">
+  {# ---------------------------------------------------------------- side navigation #}
+  <nav class="snav" aria-label="Settings sections">
+    <div class="ssearch">
+      {{ icon('search') }}
+      <label for="setsearch" class="sr-only">Search settings</label>
+      <input id="setsearch" type="search" placeholder="Search settings…" autocomplete="off">
+      <ul class="ssresults" id="ssresults" hidden></ul>
+    </div>
+    {% for gname, tabs in pages %}
+      <div class="sngroup">
+        <div class="sngtitle">{{ gname }}</div>
+        {% for key, title, ic in tabs %}
+          <a href="{{ url_for('web.settings', tab=key) }}" {% if key == tab %}aria-current="page"{% endif %} data-tab="{{ key }}">
+            {{ icon(ic) }}<span>{{ title }}</span>
+            {% if key == 'plex' %}<span class="sdot state-{{ plex_state }}" title="{{ state_words[plex_state] }}"></span>{% endif %}
+            {% if key == 'discord' %}<span class="sdot state-{{ discord_state }}" title="{{ state_words[discord_state] }}"></span>{% endif %}
+            {% if key == 'ai' %}<span class="sdot state-{{ ai_state }}" title="{{ state_words[ai_state] }}"></span>{% endif %}
+            {% if key == 'auto' and f.AUTO_APPROVE.value == 'on' %}<span class="spill">On</span>{% endif %}
+            {% if key == 'security' and auth_on %}<span class="spill">On</span>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </nav>
+
+  {# ---------------------------------------------------------------- the page #}
+  <div class="spage">
+    <div class="sphead">
+      <div>
+        <h2 class="h2">{{ page_title }}</h2>
+        {% if page_desc %}<p class="muted">{{ page_desc }}</p>{% endif %}
+      </div>
+      <div class="tools">
+        {% if tab == 'sources' %}<button class="btn sm" form="testform" name="test" value="sources">Check sources</button>{% endif %}
+        {% if tab == 'plex' %}<button class="btn sm" form="testform" name="test" value="plex">Test connection</button>{% endif %}
+        {% if tab == 'discord' %}<button class="btn sm" form="testform" name="test" value="discord">Send test message</button>
+          <button class="btn sm" form="testform" name="test" value="notify_now">Send pending summary</button>{% endif %}
+        {% if tab == 'ai' %}<button class="btn sm" form="testform" name="test" value="ai">{{ icon('sparkle') }} Test AI</button>{% endif %}
+      </div>
+    </div>
+
+    {% if checks %}
+    <div class="sbox checks">
+      {% for name, ok, msg in checks %}
+        <div class="srow"><div class="sinfo"><div class="slabel"><span class="badge {{ 'good' if ok else 'danger' }}">{{ 'OK' if ok else 'Problem' }}</span> {{ name }}</div></div>
+          <div class="sctl small muted">{{ msg }}</div></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form id="resetform" method="post"><input type="hidden" name="next" value="{{ url_for('web.settings', tab=tab) }}"></form>
+    <form id="testform" method="post" action="{{ url_for('web.settings', tab=tab) }}"></form>
+
+    {% if tab != 'system' %}
+    <form id="setform" method="post" autocomplete="off" class="sform" data-dirty-guard>
+      <input type="hidden" name="section" value="page">
+      <input type="hidden" name="page_title" value="{{ page_title }}">
+      <input type="hidden" name="next" value="{{ url_for('web.settings', tab=tab) }}">
+
+      {% if tab == 'tagging' %}
+        <div class="grid tiles">
+          <div class="tile"><span class="label">Album artist</span><span class="big">Music director only</span>
+            <span class="small muted">No single director → {{ f.VARIOUS_ARTISTS.value }}</span></div>
+          <div class="tile"><span class="label">Artist</span>
+            <span class="big">{{ {'singers': 'Singers', 'md_first': 'Music director, then singers', 'md': 'Music director only'}[f.ARTIST_MODE.value] }}</span>
+            <span class="small muted">{{ 'Joined with “, ”' if f.ARTIST_MODE.value != 'md' else 'Singers are not written' }}</span></div>
+          <div class="tile"><span class="label">Title &amp; album</span><span class="big">As the source returns them</span>
+            <span class="small muted">No re-casing or transliteration</span></div>
+        </div>
+        {% call group('When a file already has tags') %}
+          {{ row(f.OVERWRITE_MODE, 'Overwrite behaviour') }}
+          <div class="srow" id="row-QUEUE_ALL">
+            <input type="hidden" name="k" value="AUTO_APPROVE"><input type="hidden" name="has-QUEUE_ALL" value="1">
+            <div class="sinfo"><div class="slabel"><span>Queue every change for my approval</span> {{ origin_badge(f.AUTO_APPROVE) }}</div>
+              <p class="shelp">Turn off to let albums that pass the <a class="link" href="{{ url_for('web.settings', tab='auto') }}">auto-approve rules</a> be written straight away.</p></div>
+            <div class="sctl"><label class="switch"><input type="checkbox" name="QUEUE_ALL" role="switch" {{ 'checked' if f.AUTO_APPROVE.value != 'on' }}><span aria-hidden="true"></span><span class="sr-only">Queue every change</span></label></div>
+          </div>
+        {% endcall %}
+        {% call group('Artists') %}
+          {{ row(f.ARTIST_MODE) }}{{ row(f.VARIOUS_ARTISTS) }}{{ row(f.WRITE_COMPOSER) }}
+        {% endcall %}
+        {% call group('Files') %}
+          {{ row(f.ARTWORK_SIZE) }}{{ row(f.MP3_ID3_VERSION) }}{{ row(f.PROTECTED_FIELDS) }}
+        {% endcall %}
+
+      {% elif tab == 'kinds' %}
+        {% call group('Suggestions', 'Shown in Library → Needs a decision. Nothing is written until you accept.') %}
+          {{ row(f.POLICY_SUGGEST_MULTI) }}{{ row(f.POLICY_SUGGEST_SINGLE) }}{{ row(f.POLICY_SUGGEST_COLLECTION) }}{{ row(f.POLICY_COLLECTION_WORDS) }}
+        {% endcall %}
+        {% call group('What a decision writes') %}
+          {{ row(f.VARIOUS_ARTISTS) }}{{ row(f.WRITE_RELEASETYPE) }}{{ row(f.ALBUM_TAGS_UNMATCHED) }}
+        {% endcall %}
+
+      {% elif tab == 'renaming' %}
+        {% call group('') %}
+          {{ row(f.RENAME_ENABLED, 'Rename tracks when an album is approved') }}
+          <div class="srow wide" id="row-RENAME_PATTERN">
+            <input type="hidden" name="k" value="RENAME_PATTERN">
+            <div class="sinfo"><div class="slabel"><label for="pattern">Track file pattern</label> {{ origin_badge(f.RENAME_PATTERN) }}</div>
+              <p class="shelp">Click a field to insert it at the cursor. The extension is kept.</p></div>
+            <div class="sctl">
+              <input id="pattern" name="RENAME_PATTERN" class="mono" value="{{ f.RENAME_PATTERN.value }}" spellcheck="false" data-preview="pv-main">
+              <div class="tokens" role="group" aria-label="Insert a field">
+                {% for t in ('{track:02d}', '{title}', '{artist}', '{album}', '{year}', '{disc}') %}<button type="button" data-insert="{{ t }}" data-target="pattern">{{ t }}</button>{% endfor %}
+              </div>
+              <div class="preview">Preview <b id="pv-main"></b></div>
+            </div>
+          </div>
+          <div class="srow wide" id="row-RENAME_PATTERN_MULTIDISC">
+            <input type="hidden" name="k" value="RENAME_PATTERN_MULTIDISC">
+            <div class="sinfo"><div class="slabel"><label for="pattern2">Pattern for multi-disc albums</label> {{ origin_badge(f.RENAME_PATTERN_MULTIDISC) }}</div></div>
+            <div class="sctl">
+              <input id="pattern2" name="RENAME_PATTERN_MULTIDISC" class="mono" value="{{ f.RENAME_PATTERN_MULTIDISC.value }}" spellcheck="false" data-preview="pv-multi">
+              <div class="tokens" role="group" aria-label="Insert a field">
+                {% for t in ('{disc}', '{track:02d}', '{title}', '{artist}') %}<button type="button" data-insert="{{ t }}" data-target="pattern2">{{ t }}</button>{% endfor %}
+              </div>
+              <div class="preview">Preview <b id="pv-multi"></b></div>
+            </div>
+          </div>
+        {% endcall %}
+
+      {% elif tab == 'sources' %}
+        <input type="hidden" name="k" value="SOURCES">
+        {% set enabled = f.SOURCES.value %}
+        {% set ordered = enabled + (all_sources | reject('in', enabled) | list) %}
+        {% call group('Album sources', f.SOURCES.help) %}
+          {% for src in ordered %}
+          {% set pos = loop.index %}
+          <div class="srow srcrow2 {{ 'off' if src not in enabled }}" id="row-src-{{ src }}">
+            <div class="sinfo">
+              <div class="slabel"><span class="pos">{{ loop.index }}</span><span>{{ src|srclabel }}</span>
+                {% if loop.first %}{{ origin_badge(f.SOURCES) }}{% endif %}</div>
+              <p class="shelp">{{ source_info[src] }}{% if src == 'itunes' %} · region {{ f.ITUNES_COUNTRY.value|upper }}{% endif %}</p>
+            </div>
+            <div class="sctl inline">
+              <label class="sortpick"><span>Order</span>
+                <select name="order-{{ src }}" aria-label="Order for {{ src|srclabel }}" style="width: auto">
+                  {% for n in range(1, all_sources|length + 1) %}<option value="{{ n }}" {{ 'selected' if n == pos }}>{{ n }}</option>{% endfor %}
+                </select></label>
+              <label class="switch"><input type="checkbox" name="src-{{ src }}" role="switch" {{ 'checked' if src in enabled }}><span aria-hidden="true"></span><span class="sr-only">{{ src|srclabel }} enabled</span></label>
+            </div>
+          </div>
+          {% endfor %}
+        {% endcall %}
+        {% for src in ordered %}
+          {% set extra = items.sources | selectattr('source', 'defined') | selectattr('source', 'equalto', src) | list %}
+          {% if extra %}{% call group((src|srclabel) ~ ' options') %}{% for it in extra %}{{ row(it) }}{% endfor %}{% endcall %}{% endif %}
+        {% endfor %}
+        {% call group('Music director check (TMDB)', 'Not an album source: after a film album is matched, its composer on TMDB is compared with the Album Artist. Albums where TMDB names someone else wait in the review queue under “Music director?”.') %}
+          {{ row(f.TMDB_CHECK) }}{{ row(f.TMDB_API_KEY) }}{{ row(f.TMDB_RPM) }}
+          <div class="srow wide"><p class="shelp">This product uses the TMDB API but is not endorsed or certified by TMDB.
+            <a class="link" href="https://www.themoviedb.org/" target="_blank" rel="noopener">themoviedb.org</a></p></div>
+        {% endcall %}
+        {% call group('Identify songs by their sound (Shazam)', 'For songs no source finds by title, such as files named “Track 03” or with junk in the name. Songs found this way always wait for your review, under “Found by sound”.') %}
+          {{ row(f.SHAZAM_ENABLED) }}{{ row(f.SHAZAM_RPM) }}{{ row(f.SHAZAM_MAX_PER_ALBUM) }}
+        {% endcall %}
+
+      {% elif tab == 'lyrics' %}
+        {% call group('Musixmatch', 'Tried first. Synced lyrics when available, plus singer credits.') %}
+          {{ row(f.MUSIXMATCH_ENABLED, 'Use Musixmatch') }}{{ row(f.MUSIXMATCH_MODE) }}{{ row(f.MUSIXMATCH_API_KEY) }}
+          {{ row(f.MUSIXMATCH_USERTOKEN) }}{{ row(f.MUSIXMATCH_RPM) }}{{ row(f.TRACK_FIELDS_SOURCE) }}
+        {% endcall %}
+        {% call group('JioSaavn', 'Plain lyrics when Musixmatch has none.') %}
+          {{ row(f.JIOSAAVN_LYRICS, 'Use JioSaavn lyrics') }}
+        {% endcall %}
+        {% call group('Writing lyrics') %}
+          {{ row(f.EMBED_LYRICS) }}{{ row(f.WRITE_LRC) }}
+        {% endcall %}
+
+      {% elif tab == 'matching' %}
+        {% call group('Album matching', 'Confidence 9.0 = 90 %.') %}
+          {{ row(f.FALLBACK_BELOW) }}{{ row(f.FALLBACK_COVERAGE) }}{{ row(f.MIN_ALBUM_COVERAGE) }}{{ row(f.LOW_CONFIDENCE) }}{{ row(f.APPROVE_ALL_MIN) }}
+        {% endcall %}
+        {% call group('Songs and collections') %}
+          {{ row(f.TRACK_FALLBACK) }}{{ row(f.COLLECTION_MODE) }}{{ row(f.COLLECTION_MIN_FILMS) }}
+        {% endcall %}
+        {% call group('Start over', 'Isaiarr forgets its analysis and checks every folder again from the tags the files have now.') %}
+          <div class="srow" id="reset"><div class="sinfo"><div class="slabel"><span>Reset the tag analysis</span></div>
+            <p class="shelp">Forgets {{ '{:,}'.format(reset_info.albums) }} album analyses, {{ reset_info.decisions }} folder decision{{ '' if reset_info.decisions == 1 else 's' }},
+              {{ reset_info.edits }} album edit{{ '' if reset_info.edits == 1 else 's' }}, “Leave as is” and “It's fine” marks, and the Plex and track-name checks.
+              <b>Your files aren't changed</b> and Undo on each album keeps working. All {{ '{:,}'.format(reset_info.folders) }} folders are then checked again;
+              nothing is written on its own, albums with changes wait in the review queue. Albums you skipped stay skipped. For just some folders, tick them in Library → Folders → <i>Reset analysis</i>.</p></div>
+            <div class="sctl"><input form="analysisreset" name="confirm" placeholder="Type RESET" aria-label="Type RESET to confirm" autocomplete="off" style="max-width:9em">
+              <button class="btn sm danger" form="analysisreset">Reset and re-check</button></div></div>
+        {% endcall %}
+
+      {% elif tab == 'duplicates' %}
+        {% call group('Finding duplicates', 'Run a full check any time from the Duplicates page.') %}
+          {{ row(f.DUPES_AUTO) }}{{ row(f.DUPES_FINGERPRINT) }}{{ row(f.DUPES_LEVEL) }}{{ row(f.DUPES_NOTIFY) }}
+        {% endcall %}
+        {% call group('Bin', 'Extra copies are moved here, never deleted straight away. Restore them from Duplicates → Bin.') %}
+          {{ row(f.DUPES_BIN) }}{{ row(f.DUPES_BIN_DAYS) }}
+        {% endcall %}
+
+      {% elif tab == 'auto' %}
+        {% call group('') %}
+          <div class="srow" id="row-AUTO_APPROVE">
+            <input type="hidden" name="k" value="AUTO_APPROVE">
+            <div class="sinfo"><div class="slabel"><span>Auto-approve</span> {{ origin_badge(f.AUTO_APPROVE) }}</div>
+              <p class="shelp">An album must pass every rule below; the queue says which rule stopped one. Albums you re-check yourself are never auto-approved, and every write can be undone.</p></div>
+            <div class="sctl"><select name="AUTO_APPROVE" id="in-AUTO_APPROVE">{% for v, l in f.AUTO_APPROVE.choices %}<option value="{{ v }}" {{ 'selected' if v == f.AUTO_APPROVE.value }}>{{ l }}</option>{% endfor %}</select></div>
+          </div>
+        {% endcall %}
+        {% call group('Rules') %}
+          {{ row(f.AUTO_APPROVE_MIN) }}{{ row(f.AUTO_APPROVE_TRACK_MIN) }}{{ row(f.AUTO_APPROVE_ALL_MATCHED) }}
+          {{ row(f.AUTO_APPROVE_SCOPE) }}{{ row(f.AUTO_APPROVE_COLLECTIONS) }}
+        {% endcall %}
+        {% call group('When approving without the review page') %}
+          {{ row(f.DEFAULT_ARTWORK, 'Cover art') }}{{ row(f.DEFAULT_LYRICS, 'Lyrics') }}
+        {% endcall %}
+
+      {% elif tab == 'plex' %}
+        {% call group('Connection') %}
+          <div class="srow"><div class="sinfo"><div class="slabel"><span>Status</span></div></div>
+            <div class="sctl"><span class="state state-{{ plex_state }}">{{ state_words[plex_state] }}</span></div></div>
+          {{ row(f.PLEX_URL) }}{{ row(f.PLEX_TOKEN, help='Plex Web → any item → ⋯ → Get Info → View XML; the token is in the address.') }}
+        {% endcall %}
+        {% call group('Behaviour') %}
+          {{ row(f.PLEX_RESCAN) }}{{ row(f.PLEX_REFRESH_META) }}{{ row(f.PLEX_UNLOCK) }}{{ row(f.PLEX_AUTO_MERGE) }}{{ row(f.PLEX_REFRESH_DELAY) }}
+        {% endcall %}
+        {% call group('Collections, review and moods', 'Kept in Plex, not in your files: set after every write, every night for what changed, and with the button below. Your own collections, moods and reviews in Plex stay.') %}
+          {{ row(f.PLEX_COLLECTIONS_KIND) }}{{ row(f.PLEX_COLLECTIONS_DECADE) }}{{ row(f.PLEX_REVIEW) }}{{ row(f.PLEX_MOODS) }}
+          <div class="srow"><div class="sinfo"><div class="slabel"><span>Update every tagged album now</span></div>
+            <p class="shelp">For albums tagged before this was on. Runs in the background; progress in Activity → Log.</p></div>
+            <div class="sctl"><button class="btn sm" form="plexmetaform">Update Plex</button></div></div>
+        {% endcall %}
+        {% call group('NFO files', 'For Plex 1.43.5+, Kodi and Jellyfin: album and artist details as sidecar files.') %}
+          {{ row(f.WRITE_NFO) }}
+          <div class="srow"><div class="sinfo"><div class="slabel"><span>Write them now for every tagged album</span></div>
+            <p class="shelp">Albums tagged before you turned this on. Runs in the background; progress in Activity.</p></div>
+            <div class="sctl"><button class="btn sm" form="nfoform">Write NFO files</button></div></div>
+        {% endcall %}
+        {% call group('Advanced') %}
+          {% if plex_prefix %}<div class="srow"><div class="sinfo"><div class="slabel"><span>Detected from Plex</span></div>
+            <p class="shelp">Plex sees this app's <code>{{ cfg.MUSIC_DIR }}</code> as <code>{{ plex_prefix }}</code>.</p></div></div>{% endif %}
+          {{ row(f.PLEX_MUSIC_PATH) }}{{ row(f.PLEX_SECTION_ID) }}
+        {% endcall %}
+
+      {% elif tab == 'discord' %}
+        {% call group('Connection') %}
+          <div class="srow"><div class="sinfo"><div class="slabel"><span>Status</span></div></div>
+            <div class="sctl"><span class="state state-{{ discord_state }}">{{ state_words[discord_state] }}</span></div></div>
+          {{ row(f.DISCORD_WEBHOOK, 'Webhook URL') }}
+        {% endcall %}
+        {% call group('Notify me when') %}
+          {{ row(f.NOTIFY_REVIEW) }}{{ row(f.NOTIFY_APPLIED) }}{{ row(f.NOTIFY_SCAN_MISSES) }}
+        {% endcall %}
+        {% call group('Advanced') %}
+          {{ row(f.DISCORD_BATCH_MINUTES) }}{{ row(f.PUBLIC_URL) }}
+        {% endcall %}
+
+      {% elif tab == 'ai' %}
+        <div class="small muted">This month: {{ ai_spend.calls }} request(s) · {{ '{:,}'.format(ai_spend['in'] + ai_spend['out']) }} tokens{% if ai_spend.cost %} · ${{ '%.3f'|format(ai_spend.cost) }}{% endif %}
+          · used by <a class="link" href="{{ url_for('web.playlists_page') }}">Playlists</a>. Radio playlists work without AI.</div>
+        {% call group('Service') %}
+          {{ row(f.AI_PROVIDER) }}
+          {% for it in items.ai if it.provider is defined %}{{ row(it) }}{% endfor %}
+          {{ row(f.AI_MODEL) }}
+        {% endcall %}
+        {% call group('Second service', 'When the first service fails (busy, over its daily limit, down), the same request goes here. A free OpenRouter or Groq key is a good spare for Gemini.') %}
+          {{ row(f.AI_FALLBACK) }}{{ row(f.AI_FALLBACK_MODEL) }}
+        {% endcall %}
+        {% call group('Cost') %}
+          {{ row(f.AI_FREE_TIER) }}{{ row(f.AI_MONTHLY_LIMIT) }}
+        {% endcall %}
+        {% call group('Playlists') %}
+          {{ row(f.PLAYLIST_SIZE) }}{{ row(f.PLAYLIST_MAX_PER_FILM) }}{{ row(f.PLAYLIST_SKIP_JUNK) }}{{ row(f.AI_PROFILE_NEW) }}
+        {% endcall %}
+        {% call group('Speed, limits and prices', 'Built-in price estimates per million tokens: ' ~ price_note ~ '. Check your provider\'s pricing page.') %}
+          {{ row(f.AI_THINKING) }}{{ row(f.AI_TIMEOUT) }}{{ row(f.AI_RPM) }}{{ row(f.AI_MAX_SONGS) }}{{ row(f.AI_PRICE_IN) }}{{ row(f.AI_PRICE_OUT) }}
+        {% endcall %}
+
+      {% elif tab == 'security' %}
+        {% if not auth_on and f.AUTH_USERNAME.value %}<div class="note warn">The login stays off until both a username and a password are set.</div>{% endif %}
+        {% call group('Web interface login', 'Browsers and nzb360 both support it. Turn it on if Isaiarr can be reached from outside your home network.') %}
+          <div class="srow"><div class="sinfo"><div class="slabel"><span>Status</span></div></div>
+            <div class="sctl"><span class="badge {{ 'good' if auth_on else 'okb' }}">{{ 'On' if auth_on else 'Off' }}</span></div></div>
+          {% for it in items.security %}{{ row(it) }}{% endfor %}
+        {% endcall %}
+
+      {% elif tab == 'appearance' %}
+        {% call group('') %}
+          <div class="srow wide" id="row-ACCENT">
+            <input type="hidden" name="k" value="ACCENT">
+            <div class="sinfo"><div class="slabel"><span>Accent colour</span> {{ origin_badge(f.ACCENT) }}</div>
+              <p class="shelp">Used for buttons, the logo and highlights.</p></div>
+            <div class="sctl"><div class="swatches">
+              {% for v, l in accents %}<label class="swatch"><input type="radio" name="ACCENT" value="{{ v }}" {{ 'checked' if v == f.ACCENT.value }}><i style="background: {{ v }}"></i>{{ l }}</label>{% endfor %}
+            </div></div>
+          </div>
+        {% endcall %}
+      {% endif %}
+
+      {# sticky save bar: appears as soon as something changes #}
+      <div class="savebar" id="savebar" role="region" aria-label="Unsaved changes">
+        <span class="msg"><span class="dot busy" aria-hidden="true"></span> <span id="savemsg">You have unsaved changes</span></span>
+        <span class="spacer"></span>
+        <button type="button" class="btn sm" id="discard">Discard</button>
+        <button class="btn sm primary" id="savebtn">Save changes</button>
+      </div>
+    </form>
+
+    {% else %}
+      {% call group('About') %}
+        <div class="srow"><div class="sinfo"><div class="slabel"><span>Version</span></div></div>
+          <div class="sctl">{{ version }} · <a class="link" href="{{ repo_url }}/releases" target="_blank" rel="noopener">releases</a> ·
+            <a class="link" href="{{ repo_url }}/issues/new/choose" target="_blank" rel="noopener">report a problem</a></div></div>
+      {% endcall %}
+      {% call group('Container', 'Folders and port come from docker-compose.yml because they are the container\'s mounts.') %}
+        <div class="srow"><div class="sinfo"><div class="slabel"><span>Music folder</span></div></div><div class="sctl mono small">{{ cfg.MUSIC_DIR }}</div></div>
+        <div class="srow"><div class="sinfo"><div class="slabel"><span>Data folder</span></div></div><div class="sctl mono small">{{ cfg.DATA_DIR }}</div></div>
+        <div class="srow"><div class="sinfo"><div class="slabel"><span>Port</span></div></div><div class="sctl mono small">{{ cfg.PORT }}</div></div>
+        <div class="srow"><div class="sinfo"><div class="slabel"><span>Watching for new music</span></div></div>
+          <div class="sctl"><a class="link" href="{{ url_for('web.scan') }}">Scan page</a></div></div>
+      {% endcall %}
+      {% call group('Restart', 'Forgot the password? Add AUTH_DISABLE: "true" to the compose file, restart, then set a new one under Login.') %}
+        <div class="srow"><div class="sinfo"><div class="slabel"><span>Restart Isaiarr</span></div><p class="shelp">Work in progress resumes after the restart.</p></div>
+          <div class="sctl"><form method="post" action="{{ url_for('web.restart') }}" data-confirm="Restart Isaiarr now? Work in progress resumes after the restart.">
+            <button class="btn sm">Restart</button></form></div></div>
+      {% endcall %}
+    {% endif %}
+  </div>
+</div>
+
+<script type="application/json" id="setindex">{{ search_index|tojson }}</script>
+<form id="analysisreset" method="post" action="{{ url_for('web.analysis_reset') }}" hidden data-noconfirm><input type="hidden" name="scope" value="all"></form>
+<form id="plexmetaform" method="post" action="{{ url_for('web.plex_meta_all') }}" hidden data-confirm="Set collections, reviews and moods in Plex for every tagged album? Collections, moods and reviews you added in Plex yourself stay."></form>
+<form id="nfoform" method="post" action="{{ url_for('web.nfo_all') }}" hidden data-confirm="Write album.nfo (and artist.nfo where a folder is one artist's) for every tagged album? NFO files Isaiarr didn't write are left alone."></form>
+{% endblock %}

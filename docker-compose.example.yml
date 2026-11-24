@@ -1,0 +1,74 @@
+services:
+  isaiarr:
+    image: ghcr.io/gera-devp/isaiarr:latest
+    # To build from source instead (e.g. after editing the code), replace the line above with:
+    #   build: .
+    #   image: isaiarr:local
+    #   pull_policy: build
+    container_name: isaiarr
+    # Run as the user that owns your music share so renamed/retagged files keep their owner.
+    # On Synology: `id <your-user>` over SSH, usually 1026:100.
+    user: "1026:100"                     # your uid:gid, from `id <user>` on the NAS
+    # Synology: if your access to the share comes from the administrators group, add it here
+    # group_add:
+    #   - "101"
+    ports:
+      - "8687:8687"
+    volumes:
+      - /volume1/docker/isaiarr:/config
+      - /volume1/music:/music            # same share Plex reads, mounted read-write
+    environment:
+      # Everything below can also be changed in the app (Settings page); values saved there win.
+      TZ: Asia/Kolkata
+      # --- watcher ---
+      WATCH_ENABLED: "true"
+      WATCH_MODE: poll                   # poll (safest on Synology) | inotify
+      POLL_INTERVAL: "60"
+      SETTLE_SECONDS: "120"              # wait this long after the last copied file (seconds)
+      # --- sources ---
+      ITUNES_COUNTRY: in
+      SOURCES: itunes,jiosaavn,wikipedia,discogs,deezer   # album sources in priority order
+      DISCOGS_TOKEN: ""                  # discogs.com > Settings > Developers > Generate token
+      TMDB_API_KEY: ""                   # themoviedb.org > Settings > API; checks film albums' music director
+      SHAZAM_ENABLED: "true"             # identify songs no source finds by title from their sound (unofficial)
+      COLLECTION_MODE: "true"            # multi-film folders become one compilation album
+      WIKIPEDIA_CONTACT: ""              # your email or a URL; Wikimedia asks API users to identify themselves
+      FALLBACK_BELOW: "8.0"              # try the next source when confidence is below this...
+      FALLBACK_COVERAGE: "0.9"           # ...or when less than 90% of the files matched
+      TRACK_FALLBACK: "true"             # look up left-over files song by song
+      JIOSAAVN_LYRICS: "true"            # JioSaavn lyrics when Musixmatch has none
+      MUSIXMATCH_ENABLED: "true"
+      MUSIXMATCH_MODE: desktop           # desktop (no key) | api (needs MUSIXMATCH_API_KEY)
+      # MUSIXMATCH_USERTOKEN: ""         # optional: pin a desktop token if captcha blocks auto-fetch
+      # MUSIXMATCH_API_KEY: ""
+      TRACK_FIELDS_SOURCE: itunes        # who wins for title/artist when both match: itunes | musixmatch
+      # --- tag rules ---
+      ARTIST_MODE: singers               # singers | md_first | md
+      VARIOUS_ARTISTS: Various Artists
+      WRITE_COMPOSER: "true"
+      EMBED_LYRICS: "true"
+      WRITE_LRC: "true"
+      MP3_ID3_VERSION: "4"               # 3 if older players misread tags
+      # PROTECTED_FIELDS: "genre"        # never touch these fields
+      # --- rename ---
+      RENAME_ENABLED: "true"
+      RENAME_PATTERN: "{track:02d} - {title}"
+      RENAME_PATTERN_MULTIDISC: "{disc}-{track:02d} - {title}"
+      LOW_CONFIDENCE: "7.0"
+      # --- Discord ---
+      DISCORD_WEBHOOK: ""
+      DISCORD_BATCH_MINUTES: "5"
+      PUBLIC_URL: ""                       # e.g. http://<NAS-IP>:8687, for links in Discord messages
+      # --- Plex ---
+      PLEX_URL: ""                         # e.g. http://<NAS-IP>:32400
+      PLEX_TOKEN: ""
+      PLEX_MUSIC_PATH: /music            # library root as the Plex container sees it
+      # PLEX_SECTION_ID: ""              # auto-detected from PLEX_MUSIC_PATH if empty
+      # --- AI playlists (optional; also in Settings > AI & playlists) ---
+      # AI_PROVIDER: gemini              # gemini | groq | openrouter | openai | anthropic | ollama | custom | off
+      # AI_FALLBACK: openrouter          # second service when the first fails (off by default)
+      # OPENROUTER_API_KEY: ""           # openrouter.ai → Keys; ":free" models cost nothing
+      # GEMINI_API_KEY: ""               # free key: aistudio.google.com
+      # GROQ_API_KEY: ""                 # free key: console.groq.com
+      # OLLAMA_URL: http://<PC-IP>:11434 # your own model server, e.g. a Jetson
+    restart: unless-stopped
